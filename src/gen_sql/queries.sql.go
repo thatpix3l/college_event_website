@@ -18,9 +18,9 @@ RETURNING id, title, latitude, longitude
 `
 
 type CreateCoordinateParams struct {
-	Title     string
-	Latitude  float64
-	Longitude float64
+	Title     string  `json:",required"`
+	Latitude  float64 `json:",required"`
+	Longitude float64 `json:",required"`
 }
 
 func (q *Queries) CreateCoordinate(ctx context.Context, arg CreateCoordinateParams) (Coordinate, error) {
@@ -42,9 +42,9 @@ RETURNING id, title, coordinate, about
 `
 
 type CreateUniversityParams struct {
-	Title      string
-	Coordinate int32
-	About      string
+	Title      string `json:",required"`
+	Coordinate int32  `json:",required"`
+	About      string `json:",required"`
 }
 
 func (q *Queries) CreateUniversity(ctx context.Context, arg CreateUniversityParams) (University, error) {

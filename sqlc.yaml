@@ -11,3 +11,6 @@ sql:
         package: "gen_sql"
         out: "src/gen_sql"
         sql_package: "pgx/v5"
+        overrides:
+          - column: "*.*"
+            go_struct_tag: 'json:",required"'

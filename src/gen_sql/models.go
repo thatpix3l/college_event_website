@@ -9,95 +9,95 @@ import (
 )
 
 type Comment struct {
-	ID              int32
-	Body            string
-	PostedBy        pgtype.Int4
-	UniversityEvent int32
+	ID              int32       `json:",required"`
+	Body            string      `json:",required"`
+	PostedBy        pgtype.Int4 `json:",required"`
+	UniversityEvent int32       `json:",required"`
 }
 
 type Coordinate struct {
-	ID        int32
-	Title     string
-	Latitude  float64
-	Longitude float64
+	ID        int32   `json:",required"`
+	Title     string  `json:",required"`
+	Latitude  float64 `json:",required"`
+	Longitude float64 `json:",required"`
 }
 
 type Privateevent struct {
-	ID int32
+	ID int32 `json:",required"`
 }
 
 type Publicevent struct {
-	ID       int32
-	Approved bool
+	ID       int32 `json:",required"`
+	Approved bool  `json:",required"`
 }
 
 type Rating struct {
-	ID              int32
-	Stars           int32
-	PostedBy        pgtype.Int4
-	UniversityEvent int32
+	ID              int32       `json:",required"`
+	Stars           int32       `json:",required"`
+	PostedBy        pgtype.Int4 `json:",required"`
+	UniversityEvent int32       `json:",required"`
 }
 
 type Rso struct {
-	ID         int32
-	Title      string
-	University int32
+	ID         int32  `json:",required"`
+	Title      string `json:",required"`
+	University int32  `json:",required"`
 }
 
 type Rsoevent struct {
-	ID  int32
-	Rso int32
+	ID  int32 `json:",required"`
+	Rso int32 `json:",required"`
 }
 
 type Rsomember struct {
-	Rso              int32
-	UniversityMember int32
-	IsAdmin          bool
+	Rso              int32 `json:",required"`
+	UniversityMember int32 `json:",required"`
+	IsAdmin          bool  `json:",required"`
 }
 
 type Superadmin struct {
-	ID int32
+	ID int32 `json:",required"`
 }
 
 type Tag struct {
-	ID   int32
-	Name string
+	ID   int32  `json:",required"`
+	Name string `json:",required"`
 }
 
 type Taggedevent struct {
-	Tag             int32
-	UniversityEvent int32
+	Tag             int32 `json:",required"`
+	UniversityEvent int32 `json:",required"`
 }
 
 type Taggedrso struct {
-	Tag int32
-	Rso int32
+	Tag int32 `json:",required"`
+	Rso int32 `json:",required"`
 }
 
 type University struct {
-	ID         int32
-	Title      string
-	Coordinate int32
-	About      string
+	ID         int32  `json:",required"`
+	Title      string `json:",required"`
+	Coordinate int32  `json:",required"`
+	About      string `json:",required"`
 }
 
 type Universityevent struct {
-	ID                 int32
-	Title              string
-	Body               string
-	University         int32
-	OccurrenceTime     pgtype.Timestamp
-	OccurrenceLocation int32
-	ContactPhone       string
-	ContactEmail       string
+	ID                 int32            `json:",required"`
+	Title              string           `json:",required"`
+	Body               string           `json:",required"`
+	University         int32            `json:",required"`
+	OccurrenceTime     pgtype.Timestamp `json:",required"`
+	OccurrenceLocation int32            `json:",required"`
+	ContactPhone       string           `json:",required"`
+	ContactEmail       string           `json:",required"`
 }
 
 type Universitymember struct {
-	ID           int32
-	University   int32
-	NameFirst    string
-	NameMiddle   string
-	NameLast     string
-	Email        string
-	PasswordHash string
+	ID           int32  `json:",required"`
+	University   int32  `json:",required"`
+	NameFirst    string `json:",required"`
+	NameMiddle   string `json:",required"`
+	NameLast     string `json:",required"`
+	Email        string `json:",required"`
+	PasswordHash string `json:",required"`
 }
