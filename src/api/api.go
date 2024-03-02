@@ -23,7 +23,7 @@ func createRecord[Params any, Output any](req *http.Request, recordCreator func(
 		return inserted_coord, err
 	}
 
-	// Create record into DB
+	// Store record into DB
 	if coord, err := recordCreator(req.Context(), coordParams); err != nil {
 		log.Println("Unable to create coordinate for university")
 		return inserted_coord, err
