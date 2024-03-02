@@ -15,8 +15,8 @@ CREATE TABLE UniversityMember(
     id SERIAL PRIMARY KEY,
     university INTEGER NOT NULL REFERENCES University(id) ON UPDATE CASCADE ON DELETE CASCADE,
     name_first VARCHAR(70) NOT NULL,
-    name_middle char(70) NOT NULL,
-    name_last char(70) NOT NULL,
+    name_middle VARCHAR(70) NOT NULL,
+    name_last VARCHAR(70) NOT NULL,
     email VARCHAR(70) NOT NULL,
     password_hash VARCHAR(128) NOT NULL UNIQUE
 );
@@ -51,7 +51,7 @@ CREATE TABLE RsoEvent (
 );
 CREATE TABLE Tag (
     id SERIAL PRIMARY KEY,
-    name char(20) NOT NULL
+    name VARCHAR(20) NOT NULL
 );
 CREATE TABLE TaggedEvent (
     tag INTEGER NOT NULL REFERENCES Tag(id) ON UPDATE CASCADE ON DELETE CASCADE,
