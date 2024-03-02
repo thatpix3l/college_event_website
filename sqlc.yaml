@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "src/gen_sql/queries.sql"
+    schema: "src/gen_sql/schema.sql"
+    database:
+      managed: false
+      uri: "postgres://postgres:postgres@127.0.0.1/college_event_website"
+    gen:
+      go:
+        package: "gen_sql"
+        out: "src/gen_sql"
+        sql_package: "pgx/v5"

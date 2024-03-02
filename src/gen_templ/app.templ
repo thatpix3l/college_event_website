@@ -1,0 +1,19 @@
+package app
+
+import "strings"
+
+templ Main() {
+	<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+	@NavBar()
+}
+
+templ NavBar() {
+	<div class="topnav">
+		@navBarItem("Home")
+		@navBarItem("Settings")
+	</div>
+}
+
+templ navBarItem(name string) {
+	<a href={ templ.SafeURL("#" + strings.ToLower(name)) }>{ name }</a>
+}
