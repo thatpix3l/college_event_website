@@ -10,21 +10,21 @@ import (
 	"github.com/thatpix3l/collge_event_website/src/utils"
 )
 
-// Parse coordinate from HTTP request; store and return copy of it.
-func createCoordinate(queries *gen_sql.Queries, req *http.Request) (gen_sql.Coordinate, error) {
+// Parse any new record from HTTP request; store and return copy of it.
+func createRecord[Params any, Output any](req *http.Request, recordCreator func(context.Context, Params) (Output, error)) (Output, error) {
 
 	// Empty inserted coordinate
-	var inserted_coord gen_sql.Coordinate
+	var inserted_coord Output
 
 	// Deserialize new coordinates
-	var coordParams gen_sql.CreateCoordinateParams
+	var coordParams Params
 	if err := json.NewDecoder(req.Body).Decode(&coordParams); err != nil {
 		log.Println("Unable to deserialize coordinate values")
 		return inserted_coord, err
 	}
 
 	// Store new record of coordinates into DB, get copy of what was inserted
-	if coord, err := queries.CreateCoordinate(req.Context(), coordParams); err != nil {
+	if coord, err := recordCreator(req.Context(), coordParams); err != nil {
 		log.Println("Unable to create coordinate for university")
 		return inserted_coord, err
 	} else {
@@ -50,7 +50,7 @@ func ClosureCreateUniversity(sharedState utils.SharedState) func(http.ResponseWr
 		queries := gen_sql.New(conn)
 
 		// Create new coordinate
-		inserted_coord, err := createCoordinate(queries, req)
+		inserted_coord, err := createRecord(req, queries.CreateCoordinate)
 		if err != nil {
 			log.Println(err)
 			return
