@@ -13,17 +13,17 @@ import (
 // Parse any new record from HTTP request; store and return copy of it.
 func createRecord[Params any, Output any](req *http.Request, recordCreator func(context.Context, Params) (Output, error)) (Output, error) {
 
-	// Empty inserted coordinate
+	// Empty inserted record
 	var inserted_coord Output
 
-	// Deserialize new coordinates
+	// Deserialize params used to create record
 	var coordParams Params
 	if err := json.NewDecoder(req.Body).Decode(&coordParams); err != nil {
 		log.Println("Unable to deserialize coordinate values")
 		return inserted_coord, err
 	}
 
-	// Store new record of coordinates into DB, get copy of what was inserted
+	// Create record into DB
 	if coord, err := recordCreator(req.Context(), coordParams); err != nil {
 		log.Println("Unable to create coordinate for university")
 		return inserted_coord, err
@@ -31,6 +31,7 @@ func createRecord[Params any, Output any](req *http.Request, recordCreator func(
 		inserted_coord = coord
 	}
 
+	// Return copy of what was inserted
 	return inserted_coord, nil
 }
 
