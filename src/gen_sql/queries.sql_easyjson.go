@@ -122,6 +122,12 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql1(in *jl
 		in.Skip()
 		return
 	}
+	var UniversitySet bool
+	var NameFirstSet bool
+	var NameMiddleSet bool
+	var NameLastSet bool
+	var EmailSet bool
+	var PasswordHashSet bool
 	in.Delim('{')
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
@@ -132,30 +138,24 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql1(in *jl
 			continue
 		}
 		switch key {
-		case "Column1":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Column1).UnmarshalJSON(data))
-			}
-		case "Column2":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Column2).UnmarshalJSON(data))
-			}
-		case "Column3":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Column3).UnmarshalJSON(data))
-			}
-		case "Column4":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Column4).UnmarshalJSON(data))
-			}
-		case "Column5":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Column5).UnmarshalJSON(data))
-			}
-		case "Column6":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Column6).UnmarshalJSON(data))
-			}
+		case "University":
+			out.University = int32(in.Int32())
+			UniversitySet = true
+		case "NameFirst":
+			out.NameFirst = string(in.String())
+			NameFirstSet = true
+		case "NameMiddle":
+			out.NameMiddle = string(in.String())
+			NameMiddleSet = true
+		case "NameLast":
+			out.NameLast = string(in.String())
+			NameLastSet = true
+		case "Email":
+			out.Email = string(in.String())
+			EmailSet = true
+		case "PasswordHash":
+			out.PasswordHash = string(in.String())
+			PasswordHashSet = true
 		default:
 			in.SkipRecursive()
 		}
@@ -165,40 +165,58 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql1(in *jl
 	if isTopLevel {
 		in.Consumed()
 	}
+	if !UniversitySet {
+		in.AddError(fmt.Errorf("key 'University' is required"))
+	}
+	if !NameFirstSet {
+		in.AddError(fmt.Errorf("key 'NameFirst' is required"))
+	}
+	if !NameMiddleSet {
+		in.AddError(fmt.Errorf("key 'NameMiddle' is required"))
+	}
+	if !NameLastSet {
+		in.AddError(fmt.Errorf("key 'NameLast' is required"))
+	}
+	if !EmailSet {
+		in.AddError(fmt.Errorf("key 'Email' is required"))
+	}
+	if !PasswordHashSet {
+		in.AddError(fmt.Errorf("key 'PasswordHash' is required"))
+	}
 }
 func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql1(out *jwriter.Writer, in CreateUniversityMemberParams) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"Column1\":"
+		const prefix string = ",\"University\":"
 		out.RawString(prefix[1:])
-		out.Raw((in.Column1).MarshalJSON())
+		out.Int32(int32(in.University))
 	}
 	{
-		const prefix string = ",\"Column2\":"
+		const prefix string = ",\"NameFirst\":"
 		out.RawString(prefix)
-		out.Raw((in.Column2).MarshalJSON())
+		out.String(string(in.NameFirst))
 	}
 	{
-		const prefix string = ",\"Column3\":"
+		const prefix string = ",\"NameMiddle\":"
 		out.RawString(prefix)
-		out.Raw((in.Column3).MarshalJSON())
+		out.String(string(in.NameMiddle))
 	}
 	{
-		const prefix string = ",\"Column4\":"
+		const prefix string = ",\"NameLast\":"
 		out.RawString(prefix)
-		out.Raw((in.Column4).MarshalJSON())
+		out.String(string(in.NameLast))
 	}
 	{
-		const prefix string = ",\"Column5\":"
+		const prefix string = ",\"Email\":"
 		out.RawString(prefix)
-		out.Raw((in.Column5).MarshalJSON())
+		out.String(string(in.Email))
 	}
 	{
-		const prefix string = ",\"Column6\":"
+		const prefix string = ",\"PasswordHash\":"
 		out.RawString(prefix)
-		out.Raw((in.Column6).MarshalJSON())
+		out.String(string(in.PasswordHash))
 	}
 	out.RawByte('}')
 }

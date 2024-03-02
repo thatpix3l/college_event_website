@@ -7,8 +7,6 @@ package gen_sql
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCoordinate = `-- name: CreateCoordinate :one
@@ -60,28 +58,35 @@ func (q *Queries) CreateUniversity(ctx context.Context, arg CreateUniversityPara
 }
 
 const createUniversityMember = `-- name: CreateUniversityMember :one
-INSERT INTO UniversityMember
+INSERT INTO UniversityMember (
+        university,
+        name_first,
+        name_middle,
+        name_last,
+        email,
+        password_hash
+    )
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, university, name_first, name_middle, name_last, email, password_hash
 `
 
 type CreateUniversityMemberParams struct {
-	Column1 pgtype.Int4
-	Column2 pgtype.Int4
-	Column3 pgtype.Text
-	Column4 pgtype.Text
-	Column5 pgtype.Text
-	Column6 pgtype.Text
+	University   int32  `json:",required"`
+	NameFirst    string `json:",required"`
+	NameMiddle   string `json:",required"`
+	NameLast     string `json:",required"`
+	Email        string `json:",required"`
+	PasswordHash string `json:",required"`
 }
 
 func (q *Queries) CreateUniversityMember(ctx context.Context, arg CreateUniversityMemberParams) (Universitymember, error) {
 	row := q.db.QueryRow(ctx, createUniversityMember,
-		arg.Column1,
-		arg.Column2,
-		arg.Column3,
-		arg.Column4,
-		arg.Column5,
-		arg.Column6,
+		arg.University,
+		arg.NameFirst,
+		arg.NameMiddle,
+		arg.NameLast,
+		arg.Email,
+		arg.PasswordHash,
 	)
 	var i Universitymember
 	err := row.Scan(
