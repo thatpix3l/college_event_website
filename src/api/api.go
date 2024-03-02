@@ -46,7 +46,7 @@ func ClosureCreateUniversity(sharedState utils.SharedState) func(http.ResponseWr
 		}
 		defer conn.Release()
 
-		// Create DSL connection
+		// Create queries connection
 		queries := gen_sql.New(conn)
 
 		// Create new coordinate
