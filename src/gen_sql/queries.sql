@@ -50,7 +50,7 @@ INSERT INTO RsoEvent (id, rso)
 VALUES ($1, $2)
 RETURNING *;
 -- name: CreateTag :one
-INSERT INTO Tag (name)
+INSERT INTO Tag (title)
 VALUES ($1)
 RETURNING *;
 -- name: CreateTaggedEvent :one

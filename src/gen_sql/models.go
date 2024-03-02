@@ -60,8 +60,8 @@ type Superadmin struct {
 }
 
 type Tag struct {
-	ID   int32  `json:",required"`
-	Name string `json:",required"`
+	ID    int32  `json:",required"`
+	Title string `json:",required"`
 }
 
 type Taggedevent struct {

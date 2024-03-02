@@ -181,15 +181,15 @@ func (q *Queries) CreateSuperAdmin(ctx context.Context, id int32) (int32, error)
 }
 
 const createTag = `-- name: CreateTag :one
-INSERT INTO Tag (name)
+INSERT INTO Tag (title)
 VALUES ($1)
-RETURNING id, name
+RETURNING id, title
 `
 
-func (q *Queries) CreateTag(ctx context.Context, name string) (Tag, error) {
-	row := q.db.QueryRow(ctx, createTag, name)
+func (q *Queries) CreateTag(ctx context.Context, title string) (Tag, error) {
+	row := q.db.QueryRow(ctx, createTag, title)
 	var i Tag
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Title)
 	return i, err
 }
 
