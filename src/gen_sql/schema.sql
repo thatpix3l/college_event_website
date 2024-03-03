@@ -1,37 +1,37 @@
 CREATE TABLE Coordinate(
     id SERIAL PRIMARY KEY,
-    title VARCHAR(70) NOT NULL,
+    title VARCHAR NOT NULL,
     latitude FLOAT NOT NULL,
     longitude FLOAT NOT NULL,
     UNIQUE (latitude, longitude)
 );
 CREATE TABLE University (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(70) NOT NULL,
+    title VARCHAR NOT NULL,
     coordinate INTEGER NOT NULL REFERENCES Coordinate(id) ON UPDATE CASCADE,
-    about VARCHAR(400) NOT NULL
+    about VARCHAR NOT NULL
 );
 CREATE TABLE UniversityMember(
     id SERIAL PRIMARY KEY,
     university INTEGER NOT NULL REFERENCES University(id) ON UPDATE CASCADE ON DELETE CASCADE,
-    name_first VARCHAR(70) NOT NULL,
-    name_middle VARCHAR(70) NOT NULL,
-    name_last VARCHAR(70) NOT NULL,
-    email VARCHAR(70) NOT NULL,
-    password_hash VARCHAR(128) NOT NULL UNIQUE
+    name_first VARCHAR NOT NULL,
+    name_middle VARCHAR NOT NULL,
+    name_last VARCHAR NOT NULL,
+    email VARCHAR NOT NULL,
+    password_hash VARCHAR NOT NULL UNIQUE
 );
 CREATE TABLE SuperAdmin(
     id INTEGER PRIMARY KEY REFERENCES UniversityMember(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 CREATE TABLE UniversityEvent (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(50) NOT NULL,
-    body VARCHAR(200) NOT NULL,
+    title VARCHAR NOT NULL,
+    body VARCHAR NOT NULL,
     university INTEGER NOT NULL REFERENCES University(id) ON UPDATE CASCADE ON DELETE CASCADE,
     occurrence_time TIMESTAMP NOT NULL,
     occurrence_location INTEGER NOT NULL REFERENCES Coordinate(id) ON UPDATE CASCADE,
-    contact_phone VARCHAR(30) NOT NULL,
-    contact_email VARCHAR(30) NOT NULL
+    contact_phone VARCHAR NOT NULL,
+    contact_email VARCHAR NOT NULL
 );
 CREATE TABLE PublicEvent (
     id INTEGER PRIMARY KEY REFERENCES UniversityEvent(id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -42,7 +42,7 @@ CREATE TABLE PrivateEvent (
 );
 CREATE TABLE Rso (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(70) NOT NULL,
+    title VARCHAR NOT NULL,
     university INTEGER NOT NULL REFERENCES University(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 CREATE TABLE RsoEvent (
@@ -51,7 +51,7 @@ CREATE TABLE RsoEvent (
 );
 CREATE TABLE Tag (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(20) NOT NULL
+    title VARCHAR NOT NULL
 );
 CREATE TABLE TaggedEvent (
     tag INTEGER NOT NULL REFERENCES Tag(id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -71,7 +71,7 @@ CREATE TABLE RsoMember (
 );
 CREATE TABLE Comment (
     id SERIAL PRIMARY KEY,
-    body VARCHAR(1500) NOT NULL,
+    body VARCHAR NOT NULL,
     posted_by INTEGER REFERENCES UniversityMember(id) ON UPDATE CASCADE ON DELETE
     SET NULL,
         university_event INTEGER NOT NULL REFERENCES UniversityEvent(id) ON UPDATE CASCADE ON DELETE CASCADE
