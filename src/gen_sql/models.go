@@ -8,11 +8,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Baseevent struct {
+	ID                 int32            `json:",required"`
+	Title              string           `json:",required"`
+	Body               string           `json:",required"`
+	University         int32            `json:",required"`
+	OccurrenceTime     pgtype.Timestamp `json:",required"`
+	OccurrenceLocation int32            `json:",required"`
+	ContactPhone       string           `json:",required"`
+	ContactEmail       string           `json:",required"`
+}
+
+type Baseuser struct {
+	ID           int32  `json:",required"`
+	NameFirst    string `json:",required"`
+	NameMiddle   string `json:",required"`
+	NameLast     string `json:",required"`
+	Email        string `json:",required"`
+	PasswordHash string `json:",required"`
+}
+
 type Comment struct {
-	ID              int32       `json:",required"`
-	Body            string      `json:",required"`
-	PostedBy        pgtype.Int4 `json:",required"`
-	UniversityEvent int32       `json:",required"`
+	ID        int32       `json:",required"`
+	Body      string      `json:",required"`
+	PostedBy  pgtype.Int4 `json:",required"`
+	BaseEvent int32       `json:",required"`
 }
 
 type Coordinate struct {
@@ -20,6 +40,11 @@ type Coordinate struct {
 	Title     string  `json:",required"`
 	Latitude  float64 `json:",required"`
 	Longitude float64 `json:",required"`
+}
+
+type Member struct {
+	ID         int32 `json:",required"`
+	University int32 `json:",required"`
 }
 
 type Privateevent struct {
@@ -32,10 +57,10 @@ type Publicevent struct {
 }
 
 type Rating struct {
-	ID              int32       `json:",required"`
-	Stars           int32       `json:",required"`
-	PostedBy        pgtype.Int4 `json:",required"`
-	UniversityEvent int32       `json:",required"`
+	ID        int32       `json:",required"`
+	Stars     int32       `json:",required"`
+	PostedBy  pgtype.Int4 `json:",required"`
+	BaseEvent int32       `json:",required"`
 }
 
 type Rso struct {
@@ -50,9 +75,9 @@ type Rsoevent struct {
 }
 
 type Rsomember struct {
-	Rso              int32 `json:",required"`
-	UniversityMember int32 `json:",required"`
-	IsAdmin          bool  `json:",required"`
+	ID      int32 `json:",required"`
+	Rso     int32 `json:",required"`
+	IsAdmin bool  `json:",required"`
 }
 
 type Superadmin struct {
@@ -65,8 +90,8 @@ type Tag struct {
 }
 
 type Taggedevent struct {
-	Tag             int32 `json:",required"`
-	UniversityEvent int32 `json:",required"`
+	Tag       int32 `json:",required"`
+	BaseEvent int32 `json:",required"`
 }
 
 type Taggedrso struct {
@@ -79,25 +104,4 @@ type University struct {
 	Title      string `json:",required"`
 	Coordinate int32  `json:",required"`
 	About      string `json:",required"`
-}
-
-type Universityevent struct {
-	ID                 int32            `json:",required"`
-	Title              string           `json:",required"`
-	Body               string           `json:",required"`
-	University         int32            `json:",required"`
-	OccurrenceTime     pgtype.Timestamp `json:",required"`
-	OccurrenceLocation int32            `json:",required"`
-	ContactPhone       string           `json:",required"`
-	ContactEmail       string           `json:",required"`
-}
-
-type Universitymember struct {
-	ID           int32  `json:",required"`
-	University   int32  `json:",required"`
-	NameFirst    string `json:",required"`
-	NameMiddle   string `json:",required"`
-	NameLast     string `json:",required"`
-	Email        string `json:",required"`
-	PasswordHash string `json:",required"`
 }
