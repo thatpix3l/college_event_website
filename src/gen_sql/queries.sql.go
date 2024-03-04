@@ -196,6 +196,30 @@ func (q *Queries) CreatePublicEvent(ctx context.Context, id int32) (Publicevent,
 	return i, err
 }
 
+const createRating = `-- name: CreateRating :one
+INSERT INTO Rating (stars, posted_by, base_event)
+VALUES ($1, $2, $3)
+RETURNING id, stars, posted_by, base_event
+`
+
+type CreateRatingParams struct {
+	Stars     int32       `json:",required"`
+	PostedBy  pgtype.Int4 `json:",required"`
+	BaseEvent int32       `json:",required"`
+}
+
+func (q *Queries) CreateRating(ctx context.Context, arg CreateRatingParams) (Rating, error) {
+	row := q.db.QueryRow(ctx, createRating, arg.Stars, arg.PostedBy, arg.BaseEvent)
+	var i Rating
+	err := row.Scan(
+		&i.ID,
+		&i.Stars,
+		&i.PostedBy,
+		&i.BaseEvent,
+	)
+	return i, err
+}
+
 const createRso = `-- name: CreateRso :one
 INSERT INTO Rso (title, university)
 VALUES ($1, $2)

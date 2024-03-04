@@ -469,7 +469,104 @@ func (v *CreateRsoEventParams) UnmarshalJSON(data []byte) error {
 func (v *CreateRsoEventParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql4(l, v)
 }
-func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(in *jlexer.Lexer, out *CreateMemberParams) {
+func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(in *jlexer.Lexer, out *CreateRatingParams) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	var StarsSet bool
+	var PostedBySet bool
+	var BaseEventSet bool
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "Stars":
+			out.Stars = int32(in.Int32())
+			StarsSet = true
+		case "PostedBy":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.PostedBy).UnmarshalJSON(data))
+			}
+			PostedBySet = true
+		case "BaseEvent":
+			out.BaseEvent = int32(in.Int32())
+			BaseEventSet = true
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+	if !StarsSet {
+		in.AddError(fmt.Errorf("key 'Stars' is required"))
+	}
+	if !PostedBySet {
+		in.AddError(fmt.Errorf("key 'PostedBy' is required"))
+	}
+	if !BaseEventSet {
+		in.AddError(fmt.Errorf("key 'BaseEvent' is required"))
+	}
+}
+func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(out *jwriter.Writer, in CreateRatingParams) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"Stars\":"
+		out.RawString(prefix[1:])
+		out.Int32(int32(in.Stars))
+	}
+	{
+		const prefix string = ",\"PostedBy\":"
+		out.RawString(prefix)
+		out.Raw((in.PostedBy).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"BaseEvent\":"
+		out.RawString(prefix)
+		out.Int32(int32(in.BaseEvent))
+	}
+	out.RawByte('}')
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v CreateRatingParams) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v CreateRatingParams) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *CreateRatingParams) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *CreateRatingParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(l, v)
+}
+func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(in *jlexer.Lexer, out *CreateMemberParams) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -512,7 +609,7 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(in *jl
 		in.AddError(fmt.Errorf("key 'University' is required"))
 	}
 }
-func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(out *jwriter.Writer, in CreateMemberParams) {
+func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(out *jwriter.Writer, in CreateMemberParams) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -532,27 +629,27 @@ func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(out *j
 // MarshalJSON supports json.Marshaler interface
 func (v CreateMemberParams) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(&w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v CreateMemberParams) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *CreateMemberParams) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(&r, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *CreateMemberParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql5(l, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(l, v)
 }
-func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(in *jlexer.Lexer, out *CreateCoordinateParams) {
+func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(in *jlexer.Lexer, out *CreateCoordinateParams) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -602,7 +699,7 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(in *jl
 		in.AddError(fmt.Errorf("key 'Longitude' is required"))
 	}
 }
-func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(out *jwriter.Writer, in CreateCoordinateParams) {
+func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(out *jwriter.Writer, in CreateCoordinateParams) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -627,27 +724,27 @@ func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(out *j
 // MarshalJSON supports json.Marshaler interface
 func (v CreateCoordinateParams) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(&w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v CreateCoordinateParams) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *CreateCoordinateParams) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(&r, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *CreateCoordinateParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql6(l, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(l, v)
 }
-func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(in *jlexer.Lexer, out *CreateCommentParams) {
+func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(in *jlexer.Lexer, out *CreateCommentParams) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -699,7 +796,7 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(in *jl
 		in.AddError(fmt.Errorf("key 'BaseEvent' is required"))
 	}
 }
-func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(out *jwriter.Writer, in CreateCommentParams) {
+func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(out *jwriter.Writer, in CreateCommentParams) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -724,27 +821,27 @@ func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(out *j
 // MarshalJSON supports json.Marshaler interface
 func (v CreateCommentParams) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(&w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v CreateCommentParams) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *CreateCommentParams) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(&r, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *CreateCommentParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql7(l, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(l, v)
 }
-func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(in *jlexer.Lexer, out *CreateBaseUserParams) {
+func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(in *jlexer.Lexer, out *CreateBaseUserParams) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -808,7 +905,7 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(in *jl
 		in.AddError(fmt.Errorf("key 'PasswordHash' is required"))
 	}
 }
-func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(out *jwriter.Writer, in CreateBaseUserParams) {
+func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(out *jwriter.Writer, in CreateBaseUserParams) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -843,27 +940,27 @@ func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(out *j
 // MarshalJSON supports json.Marshaler interface
 func (v CreateBaseUserParams) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(&w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v CreateBaseUserParams) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *CreateBaseUserParams) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(&r, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *CreateBaseUserParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql8(l, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(l, v)
 }
-func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(in *jlexer.Lexer, out *CreateBaseEventParams) {
+func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql10(in *jlexer.Lexer, out *CreateBaseEventParams) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -943,7 +1040,7 @@ func easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(in *jl
 		in.AddError(fmt.Errorf("key 'ContactEmail' is required"))
 	}
 }
-func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(out *jwriter.Writer, in CreateBaseEventParams) {
+func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql10(out *jwriter.Writer, in CreateBaseEventParams) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -988,23 +1085,23 @@ func easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(out *j
 // MarshalJSON supports json.Marshaler interface
 func (v CreateBaseEventParams) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(&w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql10(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v CreateBaseEventParams) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(w, v)
+	easyjson3ba41af8EncodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql10(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *CreateBaseEventParams) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(&r, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql10(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *CreateBaseEventParams) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql9(l, v)
+	easyjson3ba41af8DecodeGithubComThatpix3lCollgeEventWebsiteSrcGenSql10(l, v)
 }

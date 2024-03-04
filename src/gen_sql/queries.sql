@@ -90,3 +90,7 @@ RETURNING *;
 INSERT INTO Comment (body, posted_by, base_event)
 VALUES ($1, $2, $3)
 RETURNING *;
+-- name: CreateRating :one
+INSERT INTO Rating (stars, posted_by, base_event)
+VALUES ($1, $2, $3)
+RETURNING *;
