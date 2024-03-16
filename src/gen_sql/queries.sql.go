@@ -396,6 +396,7 @@ SELECT S.id,
     BU.name_first,
     BU.name_last,
     BU.email,
+    BU.password_hash,
     U.title AS university_name
 FROM Student S,
     BaseUser BU,
@@ -409,6 +410,7 @@ type ReadStudentsRow struct {
 	NameFirst      string `schema:",required"`
 	NameLast       string `schema:",required"`
 	Email          string `schema:",required"`
+	PasswordHash   string `schema:",required"`
 	UniversityName string `schema:",required"`
 }
 
@@ -426,6 +428,7 @@ func (q *Queries) ReadStudents(ctx context.Context) ([]ReadStudentsRow, error) {
 			&i.NameFirst,
 			&i.NameLast,
 			&i.Email,
+			&i.PasswordHash,
 			&i.UniversityName,
 		); err != nil {
 			return nil, err
@@ -468,20 +471,14 @@ func (q *Queries) ReadUniversities(ctx context.Context) ([]University, error) {
 	return items, nil
 }
 
-const readUser = `-- name: ReadUser :one
+const readUserEmail = `-- name: ReadUserEmail :one
 SELECT id, name_first, name_last, email, password_hash
 FROM BaseUser
 WHERE email = $1
-    AND password_hash = $2
 `
 
-type ReadUserParams struct {
-	Email        string `schema:",required"`
-	PasswordHash string `schema:",required"`
-}
-
-func (q *Queries) ReadUser(ctx context.Context, arg ReadUserParams) (Baseuser, error) {
-	row := q.db.QueryRow(ctx, readUser, arg.Email, arg.PasswordHash)
+func (q *Queries) ReadUserEmail(ctx context.Context, email string) (Baseuser, error) {
+	row := q.db.QueryRow(ctx, readUserEmail, email)
 	var i Baseuser
 	err := row.Scan(
 		&i.ID,
@@ -491,4 +488,35 @@ func (q *Queries) ReadUser(ctx context.Context, arg ReadUserParams) (Baseuser, e
 		&i.PasswordHash,
 	)
 	return i, err
+}
+
+const readUsers = `-- name: ReadUsers :many
+SELECT id, name_first, name_last, email, password_hash
+FROM BaseUser
+`
+
+func (q *Queries) ReadUsers(ctx context.Context) ([]Baseuser, error) {
+	rows, err := q.db.Query(ctx, readUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Baseuser
+	for rows.Next() {
+		var i Baseuser
+		if err := rows.Scan(
+			&i.ID,
+			&i.NameFirst,
+			&i.NameLast,
+			&i.Email,
+			&i.PasswordHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

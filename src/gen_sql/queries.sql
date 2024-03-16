@@ -21,11 +21,13 @@ RETURNING *;
 -- name: ReadUniversities :many
 SELECT *
 FROM University;
--- name: ReadUser :one
+-- name: ReadUserEmail :one
 SELECT *
 FROM BaseUser
-WHERE email = $1
-    AND password_hash = $2;
+WHERE email = $1;
+-- name: ReadUsers :many
+SELECT *
+FROM BaseUser;
 -- name: CreateSuperAdmin :one
 WITH base_user AS (
     INSERT INTO BaseUser (
@@ -80,6 +82,7 @@ SELECT S.id,
     BU.name_first,
     BU.name_last,
     BU.email,
+    BU.password_hash,
     U.title AS university_name
 FROM Student S,
     BaseUser BU,

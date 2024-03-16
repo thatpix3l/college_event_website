@@ -16,6 +16,8 @@ var db_url string = "postgres://postgres:postgres@127.0.0.1/college_event_websit
 
 func Main() {
 
+	log.SetFlags(log.Lshortfile)
+
 	// Create instance of handlers
 	h := api.Handlers{}
 
