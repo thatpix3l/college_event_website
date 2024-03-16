@@ -26,13 +26,13 @@ RETURNING id, title, body, university, occurrence_time, occurrence_location, con
 `
 
 type CreateBaseEventParams struct {
-	Title              string           `json:",required"`
-	Body               string           `json:",required"`
-	University         int32            `json:",required"`
-	OccurrenceTime     pgtype.Timestamp `json:",required"`
-	OccurrenceLocation int32            `json:",required"`
-	ContactPhone       string           `json:",required"`
-	ContactEmail       string           `json:",required"`
+	Title              string           `schema:",required"`
+	Body               string           `schema:",required"`
+	University         int32            `schema:",required"`
+	OccurrenceTime     pgtype.Timestamp `schema:",required"`
+	OccurrenceLocation int32            `schema:",required"`
+	ContactPhone       string           `schema:",required"`
+	ContactEmail       string           `schema:",required"`
 }
 
 func (q *Queries) CreateBaseEvent(ctx context.Context, arg CreateBaseEventParams) (Baseevent, error) {
@@ -59,52 +59,6 @@ func (q *Queries) CreateBaseEvent(ctx context.Context, arg CreateBaseEventParams
 	return i, err
 }
 
-const createBaseUser = `-- name: CreateBaseUser :one
-INSERT INTO BaseUser (
-        name_first,
-        name_middle,
-        name_last,
-        email,
-        password_hash
-    )
-VALUES (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5
-    )
-RETURNING id, name_first, name_middle, name_last, email, password_hash
-`
-
-type CreateBaseUserParams struct {
-	NameFirst    string `json:",required"`
-	NameMiddle   string `json:",required"`
-	NameLast     string `json:",required"`
-	Email        string `json:",required"`
-	PasswordHash string `json:",required"`
-}
-
-func (q *Queries) CreateBaseUser(ctx context.Context, arg CreateBaseUserParams) (Baseuser, error) {
-	row := q.db.QueryRow(ctx, createBaseUser,
-		arg.NameFirst,
-		arg.NameMiddle,
-		arg.NameLast,
-		arg.Email,
-		arg.PasswordHash,
-	)
-	var i Baseuser
-	err := row.Scan(
-		&i.ID,
-		&i.NameFirst,
-		&i.NameMiddle,
-		&i.NameLast,
-		&i.Email,
-		&i.PasswordHash,
-	)
-	return i, err
-}
-
 const createComment = `-- name: CreateComment :one
 INSERT INTO Comment (body, posted_by, base_event)
 VALUES ($1, $2, $3)
@@ -112,9 +66,9 @@ RETURNING id, body, posted_by, base_event
 `
 
 type CreateCommentParams struct {
-	Body      string      `json:",required"`
-	PostedBy  pgtype.Int4 `json:",required"`
-	BaseEvent int32       `json:",required"`
+	Body      string      `schema:",required"`
+	PostedBy  pgtype.Int4 `schema:",required"`
+	BaseEvent int32       `schema:",required"`
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error) {
@@ -136,9 +90,9 @@ RETURNING id, title, latitude, longitude
 `
 
 type CreateCoordinateParams struct {
-	Title     string  `json:",required"`
-	Latitude  float64 `json:",required"`
-	Longitude float64 `json:",required"`
+	Title     string  `schema:",required"`
+	Latitude  float64 `schema:",required"`
+	Longitude float64 `schema:",required"`
 }
 
 func (q *Queries) CreateCoordinate(ctx context.Context, arg CreateCoordinateParams) (Coordinate, error) {
@@ -150,24 +104,6 @@ func (q *Queries) CreateCoordinate(ctx context.Context, arg CreateCoordinatePara
 		&i.Latitude,
 		&i.Longitude,
 	)
-	return i, err
-}
-
-const createMember = `-- name: CreateMember :one
-INSERT INTO Member (id, university)
-VALUES ($1, $2)
-RETURNING id, university
-`
-
-type CreateMemberParams struct {
-	ID         int32 `json:",required"`
-	University int32 `json:",required"`
-}
-
-func (q *Queries) CreateMember(ctx context.Context, arg CreateMemberParams) (Member, error) {
-	row := q.db.QueryRow(ctx, createMember, arg.ID, arg.University)
-	var i Member
-	err := row.Scan(&i.ID, &i.University)
 	return i, err
 }
 
@@ -203,9 +139,9 @@ RETURNING id, stars, posted_by, base_event
 `
 
 type CreateRatingParams struct {
-	Stars     int32       `json:",required"`
-	PostedBy  pgtype.Int4 `json:",required"`
-	BaseEvent int32       `json:",required"`
+	Stars     int32       `schema:",required"`
+	PostedBy  pgtype.Int4 `schema:",required"`
+	BaseEvent int32       `schema:",required"`
 }
 
 func (q *Queries) CreateRating(ctx context.Context, arg CreateRatingParams) (Rating, error) {
@@ -227,8 +163,8 @@ RETURNING id, title, university
 `
 
 type CreateRsoParams struct {
-	Title      string `json:",required"`
-	University int32  `json:",required"`
+	Title      string `schema:",required"`
+	University int32  `schema:",required"`
 }
 
 func (q *Queries) CreateRso(ctx context.Context, arg CreateRsoParams) (Rso, error) {
@@ -245,8 +181,8 @@ RETURNING id, rso
 `
 
 type CreateRsoEventParams struct {
-	ID  int32 `json:",required"`
-	Rso int32 `json:",required"`
+	ID  int32 `schema:",required"`
+	Rso int32 `schema:",required"`
 }
 
 func (q *Queries) CreateRsoEvent(ctx context.Context, arg CreateRsoEventParams) (Rsoevent, error) {
@@ -269,14 +205,95 @@ func (q *Queries) CreateRsoMember(ctx context.Context, rso int32) (Rsomember, er
 	return i, err
 }
 
+const createStudent = `-- name: CreateStudent :one
+WITH base_user AS (
+    INSERT INTO BaseUser (
+            name_first,
+            name_last,
+            email,
+            password_hash
+        )
+    VALUES (
+            $1,
+            $2,
+            $3,
+            $4
+        )
+    RETURNING id, name_first, name_last, email, password_hash
+)
+INSERT INTO Student(id, university)
+VALUES (
+        (
+            SELECT id
+            FROM base_user
+        ),
+        $5
+    )
+RETURNING id, university
+`
+
+type CreateStudentParams struct {
+	NameFirst    string `schema:",required"`
+	NameLast     string `schema:",required"`
+	Email        string `schema:",required"`
+	PasswordHash string `schema:",required"`
+	University   int32  `schema:",required"`
+}
+
+func (q *Queries) CreateStudent(ctx context.Context, arg CreateStudentParams) (Student, error) {
+	row := q.db.QueryRow(ctx, createStudent,
+		arg.NameFirst,
+		arg.NameLast,
+		arg.Email,
+		arg.PasswordHash,
+		arg.University,
+	)
+	var i Student
+	err := row.Scan(&i.ID, &i.University)
+	return i, err
+}
+
 const createSuperAdmin = `-- name: CreateSuperAdmin :one
-INSERT INTO SuperAdmin (id)
-VALUES ($1)
+WITH base_user AS (
+    INSERT INTO BaseUser (
+            name_first,
+            name_last,
+            email,
+            password_hash
+        )
+    VALUES (
+            $1,
+            $2,
+            $3,
+            $4
+        )
+    RETURNING id, name_first, name_last, email, password_hash
+)
+INSERT INTO SuperAdmin(id)
+VALUES (
+        (
+            SELECT id
+            FROM base_user
+        )
+    )
 RETURNING id
 `
 
-func (q *Queries) CreateSuperAdmin(ctx context.Context, id int32) (int32, error) {
-	row := q.db.QueryRow(ctx, createSuperAdmin, id)
+type CreateSuperAdminParams struct {
+	NameFirst    string `schema:",required"`
+	NameLast     string `schema:",required"`
+	Email        string `schema:",required"`
+	PasswordHash string `schema:",required"`
+}
+
+func (q *Queries) CreateSuperAdmin(ctx context.Context, arg CreateSuperAdminParams) (int32, error) {
+	row := q.db.QueryRow(ctx, createSuperAdmin,
+		arg.NameFirst,
+		arg.NameLast,
+		arg.Email,
+		arg.PasswordHash,
+	)
+	var id int32
 	err := row.Scan(&id)
 	return id, err
 }
@@ -301,8 +318,8 @@ RETURNING tag, base_event
 `
 
 type CreateTaggedEventParams struct {
-	Tag       int32 `json:",required"`
-	BaseEvent int32 `json:",required"`
+	Tag       int32 `schema:",required"`
+	BaseEvent int32 `schema:",required"`
 }
 
 func (q *Queries) CreateTaggedEvent(ctx context.Context, arg CreateTaggedEventParams) (Taggedevent, error) {
@@ -319,8 +336,8 @@ RETURNING tag, rso
 `
 
 type CreateTaggedRsoParams struct {
-	Tag int32 `json:",required"`
-	Rso int32 `json:",required"`
+	Tag int32 `schema:",required"`
+	Rso int32 `schema:",required"`
 }
 
 func (q *Queries) CreateTaggedRso(ctx context.Context, arg CreateTaggedRsoParams) (Taggedrso, error) {
@@ -349,11 +366,11 @@ RETURNING id, title, coordinate, about
 `
 
 type CreateUniversityParams struct {
-	UniversityTitle string  `json:",required"`
-	UniversityAbout string  `json:",required"`
-	CoordTitle      string  `json:",required"`
-	CoordLatitude   float64 `json:",required"`
-	CoordLongitude  float64 `json:",required"`
+	UniversityTitle string  `schema:",required"`
+	UniversityAbout string  `schema:",required"`
+	CoordTitle      string  `schema:",required"`
+	CoordLatitude   float64 `schema:",required"`
+	CoordLongitude  float64 `schema:",required"`
 }
 
 func (q *Queries) CreateUniversity(ctx context.Context, arg CreateUniversityParams) (University, error) {
@@ -370,6 +387,108 @@ func (q *Queries) CreateUniversity(ctx context.Context, arg CreateUniversityPara
 		&i.Title,
 		&i.Coordinate,
 		&i.About,
+	)
+	return i, err
+}
+
+const readStudents = `-- name: ReadStudents :many
+SELECT S.id,
+    BU.name_first,
+    BU.name_last,
+    BU.email,
+    U.title AS university_name
+FROM Student S,
+    BaseUser BU,
+    University U
+WHERE S.id = BU.id
+    AND S.university = U.id
+`
+
+type ReadStudentsRow struct {
+	ID             int32  `schema:",required"`
+	NameFirst      string `schema:",required"`
+	NameLast       string `schema:",required"`
+	Email          string `schema:",required"`
+	UniversityName string `schema:",required"`
+}
+
+func (q *Queries) ReadStudents(ctx context.Context) ([]ReadStudentsRow, error) {
+	rows, err := q.db.Query(ctx, readStudents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReadStudentsRow
+	for rows.Next() {
+		var i ReadStudentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.NameFirst,
+			&i.NameLast,
+			&i.Email,
+			&i.UniversityName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const readUniversities = `-- name: ReadUniversities :many
+SELECT id, title, coordinate, about
+FROM University
+`
+
+func (q *Queries) ReadUniversities(ctx context.Context) ([]University, error) {
+	rows, err := q.db.Query(ctx, readUniversities)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []University
+	for rows.Next() {
+		var i University
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Coordinate,
+			&i.About,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const readUser = `-- name: ReadUser :one
+SELECT id, name_first, name_last, email, password_hash
+FROM BaseUser
+WHERE email = $1
+    AND password_hash = $2
+`
+
+type ReadUserParams struct {
+	Email        string `schema:",required"`
+	PasswordHash string `schema:",required"`
+}
+
+func (q *Queries) ReadUser(ctx context.Context, arg ReadUserParams) (Baseuser, error) {
+	row := q.db.QueryRow(ctx, readUser, arg.Email, arg.PasswordHash)
+	var i Baseuser
+	err := row.Scan(
+		&i.ID,
+		&i.NameFirst,
+		&i.NameLast,
+		&i.Email,
+		&i.PasswordHash,
 	)
 	return i, err
 }

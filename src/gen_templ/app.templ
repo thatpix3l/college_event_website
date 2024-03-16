@@ -1,19 +1,132 @@
 package app
 
+import "github.com/thatpix3l/collge_event_website/src/utils"
 import "strings"
+import "github.com/thatpix3l/collge_event_website/src/gen_sql"
+import "strconv"
 
-templ Main() {
-	<script src="https://unpkg.com/htmx.org@1.9.10"></script>
-	@NavBar()
+templ Home(comp templ.Component) {
+	<!DOCTYPE html>
+	<html>
+		<header>
+			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+			<link
+				rel="stylesheet"
+				href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+			/>
+			<style>
+	@import url('https://fonts.cdnfonts.com/css/open-sans');
+
+	:root {
+		$amber-50: #fff8e1 !default;
+		$amber-900: #ff6f00 !default;
+		$green-50: #e8f5e9 !default;
+		$green-800: #1b5e20 !default;
+		$red-50: #ffebee !default;
+		$red-900: #b71c1c !default;
+	}
+	
+	a:hover {
+		cursor: pointer;
+	}
+	
 }
 
-templ NavBar() {
-	<div class="topnav">
-		@navBarItem("Home")
-		@navBarItem("Settings")
-	</div>
+	</style>
+		</header>
+		<body>
+			<div class="container">
+				<main>
+					@comp
+				</main>
+			</div>
+		</body>
+	</html>
 }
 
-templ navBarItem(name string) {
-	<a href={ templ.SafeURL("#" + strings.ToLower(name)) }>{ name }</a>
+templ UniversityInput(universities []gen_sql.University) {
+	<label for="university-input"><b></b></label>
+	<select id="university-input" name="university" aria-label="Pick University" required>
+		<option selected disabled value="">Pick University</option>
+		for _, university := range universities {
+			<option value={ strconv.Itoa(int(university.ID)) }>{ university.Title }</option>
+		}
+	</select>
+}
+
+templ CreatedUniversities(universities []gen_sql.University) {
+	for _, university := range universities {
+		<article>
+			<header>{ university.Title }</header>
+			{ university.About }
+			<br/>
+			{ strconv.Itoa(int(university.Coordinate)) }
+		</article>
+	}
+}
+
+templ CreatedStudent(student gen_sql.ReadStudentsRow) {
+	<article>
+		<header>{ student.NameLast + " " + student.NameFirst }</header>
+		{ student.UniversityName }
+		<br/>
+		{ strconv.Itoa(int(student.ID)) }
+	</article>
+}
+
+templ StatusMessage(alertType string, msg string) {
+	<div class={ "alert", "alert-" + alertType } role="alert">{ msg }</div>
+}
+
+templ FormInput(inputType string, id string, title string) {
+	<label for={ id }><b>{ title }</b></label>
+	<input type={ inputType } id={ id } name={ id } placeholder={ "Enter " + strings.ToLower(title) }/>
+}
+
+type CredFormProps struct {
+	Title            string            // Title of credentials form
+	PostPath         string            // API path to post form data
+	AlternativePath  string            // Path to alternative form
+	AlternativeAbout string            // Short "about" for alternative form
+	ExtraForms       []templ.Component // List of extra forms
+}
+
+templ CredentialsForm(title string, postPath string, altPath string, altAbout string, extraForms ...templ.Component) {
+	<article>
+		<header>
+			<h1>{ title }</h1>
+			<a hx-target="main" hx-get={ utils.ApiPath(altPath) }>{ altAbout }</a>
+		</header>
+		<form hx-post={ utils.ApiPath(postPath) } method="post">
+			@FormInput("email", "Email", "Email")
+			@FormInput("password", "PasswordPlaintext", "Password")
+			for _, ef := range extraForms {
+				@ef
+			}
+			<input type="submit" value="Submit"/>
+		</form>
+	</article>
+}
+
+templ LoginForm() {
+	@CredentialsForm("Login", "login", "signup", "Need to create an account?")
+}
+
+templ SignupForm(universities []gen_sql.University) {
+	@CredentialsForm("Signup", "signup", "login", "Already have an account?",
+		FormInput("text", "NameFirst", "First Name"),
+		FormInput("text", "NameLast", "Last Name"),
+		UniversityInput(universities))
+}
+
+templ NavBar(currentTitle string) {
+	<nav id="navbar">
+		<ul>
+			<li><strong>{ currentTitle }</strong></li>
+		</ul>
+		<ul>
+			<li><a href="/">Home</a></li>
+			<li><a href="/settings">Settings</a></li>
+		</ul>
+	</nav>
 }

@@ -18,30 +18,74 @@ VALUES (
         @university_about
     )
 RETURNING *;
--- name: CreateBaseUser :one
-INSERT INTO BaseUser (
-        name_first,
-        name_middle,
-        name_last,
-        email,
-        password_hash
-    )
+-- name: ReadUniversities :many
+SELECT *
+FROM University;
+-- name: ReadUser :one
+SELECT *
+FROM BaseUser
+WHERE email = $1
+    AND password_hash = $2;
+-- name: CreateSuperAdmin :one
+WITH base_user AS (
+    INSERT INTO BaseUser (
+            name_first,
+            name_last,
+            email,
+            password_hash
+        )
+    VALUES (
+            $1,
+            $2,
+            $3,
+            $4
+        )
+    RETURNING *
+)
+INSERT INTO SuperAdmin(id)
 VALUES (
-        $1,
-        $2,
-        $3,
-        $4,
+        (
+            SELECT id
+            FROM base_user
+        )
+    )
+RETURNING *;
+-- name: CreateStudent :one
+WITH base_user AS (
+    INSERT INTO BaseUser (
+            name_first,
+            name_last,
+            email,
+            password_hash
+        )
+    VALUES (
+            $1,
+            $2,
+            $3,
+            $4
+        )
+    RETURNING *
+)
+INSERT INTO Student(id, university)
+VALUES (
+        (
+            SELECT id
+            FROM base_user
+        ),
         $5
     )
 RETURNING *;
--- name: CreateSuperAdmin :one
-INSERT INTO SuperAdmin (id)
-VALUES (@id)
-RETURNING *;
--- name: CreateMember :one
-INSERT INTO Member (id, university)
-VALUES ($1, $2)
-RETURNING *;
+-- name: ReadStudents :many
+SELECT S.id,
+    BU.name_first,
+    BU.name_last,
+    BU.email,
+    U.title AS university_name
+FROM Student S,
+    BaseUser BU,
+    University U
+WHERE S.id = BU.id
+    AND S.university = U.id;
 -- name: CreateRso :one
 INSERT INTO Rso (title, university)
 VALUES ($1, $2)

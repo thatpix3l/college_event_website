@@ -1,26 +1,15 @@
 package utils
 
 import (
-	"runtime"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/a-h/templ"
 )
 
-type SharedState = struct {
-	Pool *pgxpool.Pool
+// Given `subpath`, prefix with API path
+func ApiPath(subpath string) string {
+	return "/api/v1/" + subpath
 }
 
-// Get name of any function `skip` amount away from this function's position
-func GetFuncName(skip int) string {
-	pc, _, _, ok := runtime.Caller(skip + 1)
-	if !ok {
-		return ""
-	}
-
-	funcPtr := runtime.FuncForPC(pc)
-	if funcPtr == nil {
-		return ""
-	}
-
-	return funcPtr.Name()
+// Same thing as `ApiPath`, but sanitized for URLs
+func ApiPathSafe(subpath string) templ.SafeURL {
+	return templ.SafeURL(ApiPath(subpath))
 }

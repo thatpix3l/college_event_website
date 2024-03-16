@@ -13,4 +13,4 @@ sql:
         sql_package: "pgx/v5"
         overrides:
           - column: "*.*"
-            go_struct_tag: 'json:",required"'
+            go_struct_tag: 'schema:",required"'
