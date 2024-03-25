@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thatpix3l/collge_event_website/src/api"
-	"github.com/thatpix3l/collge_event_website/src/utils"
 )
 
 var db_url string = "postgres://postgres:postgres@127.0.0.1/college_event_website"
@@ -18,33 +17,28 @@ func Main() {
 
 	log.SetFlags(log.Lshortfile)
 
-	// Create instance of handlers
-	h := api.Handlers{}
-
 	// Get database connection
 	if conn, err := pgxpool.New(context.Background(), db_url); err != nil {
 		log.Fatal(err)
 	} else {
 		// Store pool connection
-		h.Pool = conn
+		api.GlobalState.Pool = conn
 	}
-	defer h.Pool.Close()
+	defer api.GlobalState.Pool.Close()
 
-	// Create new router; add handlers to it.
+	// Create new router
 	r := chi.NewRouter()
 
-	// Middleware
+	// Add middleware
 	r.Use(middleware.Logger)
-	// r.Use(h.Authentication)
+	r.Use(api.Authentication)
 
-	// Routes
-	h.Add(r.Get, "/", h.ReadHome)
-	h.Add(r.Post, utils.ApiPath("university"), h.CreateUniversity)
-	h.Add(r.Get, utils.ApiPath("university"), h.ReadUniversities)
-	h.Add(r.Post, utils.ApiPath("login"), h.CreateLogin)
-	h.Add(r.Get, utils.ApiPath("login"), h.ReadLogin)
-	h.Add(r.Post, utils.ApiPath("signup"), h.CreateStudent)
-	h.Add(r.Get, utils.ApiPath("signup"), h.ReadSignup)
+	// Add routes
+	for path, pathFuncs := range api.HandleFuncs {
+		for method, fn := range pathFuncs {
+			r.MethodFunc(method, path, fn)
+		}
+	}
 
 	http.ListenAndServe(":3000", r)
 }

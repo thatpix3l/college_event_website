@@ -46,7 +46,7 @@ templ Home(comp templ.Component) {
 
 templ UniversityInput(universities []gen_sql.University) {
 	<label for="university-input"><b></b></label>
-	<select id="university-input" name="university" aria-label="Pick University" required>
+	<select id="university-input" name="University" aria-label="Pick University" required>
 		<option selected disabled value="">Pick University</option>
 		for _, university := range universities {
 			<option value={ strconv.Itoa(int(university.ID)) }>{ university.Title }</option>
@@ -67,11 +67,17 @@ templ CreatedUniversities(universities []gen_sql.University) {
 
 templ CreatedStudent(student gen_sql.ReadStudentsRow) {
 	<article>
-		<header>{ student.NameLast + " " + student.NameFirst }</header>
+		<header>{ student.NameLast + ", " + student.NameFirst }</header>
 		{ student.UniversityName }
 		<br/>
 		{ strconv.Itoa(int(student.ID)) }
 	</article>
+}
+
+templ CreatedStudents(students []gen_sql.ReadStudentsRow) {
+	for _, student := range students {
+		@CreatedStudent(student)
+	}
 }
 
 templ StatusMessage(alertType string, msg string) {

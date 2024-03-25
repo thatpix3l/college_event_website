@@ -16,12 +16,10 @@ func ApiPathSafe(subpath string) templ.SafeURL {
 	return templ.SafeURL(ApiPath(subpath))
 }
 
-// Chain one error with a new error containing custom message
-func ErrInfo(err error, msg string) error {
-	return errors.Join(errors.New(msg), err)
-}
-
-// Chain database error with no acquisition error
-func ErrDb(err error) error {
-	return ErrInfo(err, "unable to acquire database connection")
+// Shorthand to prepend given error with multiple string errors.
+func ErrPrep(err error, msgs ...string) error {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		err = errors.Join(errors.New(msgs[i]), err)
+	}
+	return err
 }
