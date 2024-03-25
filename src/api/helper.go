@@ -52,7 +52,7 @@ func (t *JwtTime) UnmarshalJSON(b []byte) (err error) {
 }
 
 func (t JwtTime) MarshalJSON() ([]byte, error) {
-	return []byte(t.String()), nil
+	return []byte("\"" + t.String() + "\""), nil
 }
 
 type JwtClaim struct {
