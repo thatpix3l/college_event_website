@@ -95,7 +95,6 @@ var CreateLogin = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Handler
 
 	// Create new authentication token
 	token, err := newToken(int(baseUser.ID))
-	log.Println(err)
 	if err != nil {
 		hs.Local.RespondHtml(app.StatusMessage("warning", "unable to create JWT token"), http.StatusInternalServerError)
 		return err
