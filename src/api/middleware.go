@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	app "github.com/thatpix3l/collge_event_website/src/gen_templ"
 )
@@ -10,40 +11,31 @@ import (
 func Authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(StdHttpFunc("/", "*", func(hs HandlerState) error {
 
-		next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
-		return nil
+		// If accessing resource that doesn't require authentication, allow
+		for path, methods := range noAuth {
+			for _, method := range methods {
 
-		// allow if accessing any resources that don't require authentication or authorization
-		for _, path := range noAuthPaths {
-			if hs.Local.Request.URL.Path == path {
-				next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
-				return nil
+				// Request path allowed
+				allowedPath := hs.Local.Request.URL.Path == path
+
+				// Request method allowed
+				allowedMethod := hs.Local.Request.Method == strings.ToUpper(method)
+
+				if allowedPath && allowedMethod {
+					next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
+					return nil
+				}
 			}
+
 		}
 
-		// Should only be here if requested resource requires authentication and authorization
-
-		// Exit early if no authentication token provided
-		givenToken, err := hs.Local.Request.Cookie("authentication_token")
-		if err == http.ErrNoCookie {
-
-			// alert user that they are not authenticated yet
-			hs.Local.ResponseWriter.WriteHeader(http.StatusUnauthorized)
-			if _, err := hs.Local.ResponseWriter.Write([]byte("401 - Any access besides homepage requires authentication")); err != nil {
-				return err
-			}
+		// If not authenticated for all other resources, deny
+		if err := hs.Authenticated(); err != nil {
+			hs.Local.RespondHtml(app.StatusMessage("danger", "invalid authentication token"), http.StatusBadRequest)
 			return err
-
 		}
 
-		// Exit Early if given token is invalid
-		if !validToken(givenToken.Value) {
-			if err := hs.Local.RespondHtml(app.StatusMessage("danger", "403 - Not authorized to access resource"), http.StatusForbidden); err != nil {
-				return err
-			}
-		}
-
-		// Token exists and is valid, continue
+		// Should only be here if authenticated
 		next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
 
 		return nil

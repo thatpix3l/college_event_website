@@ -4,7 +4,11 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/thatpix3l/collge_event_website/src/gen_sql"
 	app "github.com/thatpix3l/collge_event_website/src/gen_templ"
 	"github.com/thatpix3l/collge_event_website/src/utils"
@@ -17,7 +21,7 @@ var ReadHomepage = addHandlerFunc("/", "get", func(hs HandlerState) error {
 	comp := app.LoginForm()
 
 	// If authenticated and authorized, allow access the list of events
-	if authenticated(hs.Local.Request) {
+	if err := hs.Authenticated(); err == nil {
 
 		// Create queries connection
 		if err := hs.Queries(); err != nil {
@@ -33,6 +37,8 @@ var ReadHomepage = addHandlerFunc("/", "get", func(hs HandlerState) error {
 		// Set as component to send
 		comp = app.CreatedUniversities(universities)
 
+	} else {
+		log.Println(err)
 	}
 
 	// Respond to client with fully rendered home
@@ -93,23 +99,49 @@ var CreateLogin = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Handler
 		return utils.ErrPrep(err, "password does not match user with provided email")
 	}
 
-	// Create new authentication token
-	token, err := newToken(int(baseUser.ID))
+	// Create claims
+	now := jwt.NumericDate{Time: time.Now()}
+	expires := jwt.NumericDate{Time: now.Add(time.Hour * 24 * 3)}
+
+	claims := jwt.RegisteredClaims{
+		Issuer:    "college_event_website",
+		Subject:   strconv.Itoa(int(baseUser.ID)),
+		Audience:  jwt.ClaimStrings{"student"},
+		ExpiresAt: &expires,
+		NotBefore: &now,
+		IssuedAt:  &now,
+		ID:        uuid.NewString(),
+	}
+
+	// Cache claims
+	authenticatedUsers.Add(claims)
+
+	// Create signed token string
+	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(tokenSecret)
 	if err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("warning", "unable to create JWT token"), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage("danger", "unable to sign JWT token"), http.StatusInternalServerError)
 		return err
 	}
-	tokenCookie := newTokenCookie(token)
+
+	// Create cookie storing signed token string
+	authCookie := http.Cookie{
+		Name:     "authenticationToken",
+		Value:    ss,
+		Path:     "/",
+		Expires:  expires.Time,
+		HttpOnly: true,
+	}
+
+	// Store cookie into Set-Cookie header for future usage.
+	http.SetCookie(hs.Local.ResponseWriter, &authCookie)
 
 	// Get list of universities
 	universities, err := runTx(hs.Local, noParamTx(hs.Local.Queries.ReadUniversities))
 	if err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("warning", err.Error()), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
 		return err
 	}
 
-	// Store cookie into Set-Cookie header; client should respond back with the given token
-	hs.Local.ResponseWriter.Header().Set("Set-Cookie", tokenCookie.String())
 	hs.Local.RespondHtml(app.CreatedUniversities(universities))
 
 	return nil

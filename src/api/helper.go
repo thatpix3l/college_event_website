@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"log"
 	"net/http"
@@ -11,7 +10,8 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/cristalhq/jwt/v5"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/gorilla/schema"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thatpix3l/collge_event_website/src/gen_sql"
@@ -19,47 +19,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var tokenSecret = func() []byte {
-	b := make([]byte, 256)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
-	}
-	return b
-}()
-
-var tokenSigner = func() *jwt.HSAlg {
-	signer, err := jwt.NewSignerHS(jwt.HS256, tokenSecret)
-	if err != nil {
-		panic(err)
-	}
-
-	return signer
-}()
-
-var tokenBuilder = jwt.NewBuilder(tokenSigner)
-
-type JwtTime struct {
-	time.Time
-}
-
-func (t *JwtTime) UnmarshalJSON(b []byte) (err error) {
-	date, err := time.Parse(`"2006-01-02 15:04:05.999999999 -0700 MST"`, string(b))
-	if err != nil {
-		return err
-	}
-	t.Time = date
-	return
-}
-
-func (t JwtTime) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + t.String() + "\""), nil
-}
-
-type JwtClaim struct {
-	UserId int     `json:"sub"` // ID of user the token was issued for
-	JwtId  string  `json:"jti"` // ID of token
-	Issued JwtTime `json:"iat"` // when token was issued
-}
+var tokenSecret = []byte(uuid.NewString())
 
 // State accessible by all handlers
 type globalState struct {
@@ -259,45 +219,67 @@ func runTx[Params any, Output any](ls *LocalState, tx func(context.Context, Para
 	return output, nil
 }
 
-// Information about an authenticated user
-type AuthenticatedUser struct {
-	Id int // database ID of user
-	http.Cookie
+type AuthenticatedUsers struct {
+	list []jwt.RegisteredClaims
+	lock sync.RWMutex
 }
 
-var authenticatedUsers map[string]AuthenticatedUser = make(map[string]AuthenticatedUser) // Authenticated users cache
-var authenticatedUsersLock sync.RWMutex                                                  // Authenticated users cache lock
+func (au *AuthenticatedUsers) Add(claims jwt.RegisteredClaims) {
+	au.lock.Lock()
+	au.list = append(au.list, claims)
+	au.lock.Unlock()
+}
+
+var authenticatedUsers = AuthenticatedUsers{
+	list: []jwt.RegisteredClaims{},
+}
+
+func tokenParser(t *jwt.Token) (interface{}, error) {
+	return tokenSecret, nil
+}
 
 // Check if given authentication token is still valid
-func validToken(authToken string) bool {
-	authenticatedUsersLock.RLock()
-	defer authenticatedUsersLock.RUnlock()
-	for authenticated := range authenticatedUsers {
-		if authToken == authenticated {
-			return true
+func (hs HandlerState) Authenticated() error {
+
+	// Get signed auth token from cookies
+	c, err := hs.Local.Request.Cookie("authenticationToken")
+	if err != nil {
+		return err
+	}
+
+	// Parse claims from signed token
+	parsedClaims := jwt.RegisteredClaims{}
+	if _, err := jwt.ParseWithClaims(c.Value, &parsedClaims, tokenParser); err != nil {
+		return err
+	}
+
+	authenticatedUsers.lock.RLock()
+	defer authenticatedUsers.lock.RUnlock()
+
+	// Attempt to check if token has been cached and still valid
+	for _, cachedClaims := range authenticatedUsers.list {
+
+		sub, err := cachedClaims.GetSubject()
+		if err != nil {
+			continue
+		}
+
+		// If auth token is cached and used between Expiration and NotBefore timeframe, allow
+		now := time.Now()
+		if parsedClaims.Subject == sub && now.After(parsedClaims.NotBefore.Time) && parsedClaims.ExpiresAt.After(now) {
+			return nil
 		}
 	}
 
-	return false
+	return errors.New("provided authentication token is invalid")
+
 }
 
-var noAuthPaths = []string{"/", utils.ApiPath("login"), utils.ApiPath("signup")}
-
-func authenticated(req *http.Request) bool {
-
-	c, err := req.Cookie("authentication_token")
-	if err != nil {
-		return false
-	}
-
-	for _, authUser := range authenticatedUsers {
-		if c.Value == authUser.Cookie.Value {
-			return true
-		}
-	}
-
-	return false
-
+// Accessible paths with associated methods that don't require authentication.
+var noAuth = map[string][]string{
+	"/":                     {"get"},
+	utils.ApiPath("login"):  {"get", "post"},
+	utils.ApiPath("signup"): {"get", "post"},
 }
 
 // Wrapper for generic transaction that does NOT accept any parameters.
@@ -306,37 +288,6 @@ func noParamTx[Output any, Param struct{}](tx func(context.Context) (Output, err
 		out, err := tx(ctx)
 		return out, err
 	}
-}
-
-// Create new JWT token
-func newToken(user int) (*jwt.Token, error) {
-
-	// Create unique JWT token id
-	jwtId := make([]byte, 256)
-	if _, err := rand.Read(jwtId); err != nil {
-		return &jwt.Token{}, err
-	}
-
-	// Build token that user can reuse for continued access and refreshes
-	token, err := tokenBuilder.Build(JwtClaim{
-		UserId: int(user),
-		JwtId:  string(jwtId),
-		Issued: JwtTime{time.Now()},
-	})
-
-	// Return token and possible error
-	return token, err
-
-}
-
-// Create new JWT token cookie
-func newTokenCookie(token *jwt.Token) http.Cookie {
-	tokenCookie := http.Cookie{
-		Name:     "authenticationToken",
-		Value:    "Bearer " + token.String(),
-		HttpOnly: true,
-	}
-	return tokenCookie
 }
 
 func (ls *LocalState) FormGet(key string) (string, error) {
