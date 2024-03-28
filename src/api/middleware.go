@@ -7,21 +7,26 @@ import (
 	app "github.com/thatpix3l/collge_event_website/src/gen_templ"
 )
 
-// Authentication middleware
+// Authentication middleware.
 func Authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(StdHttpFunc("/", "*", func(hs HandlerState) error {
 
-		// If accessing resource that doesn't require authentication, allow
+		// If accessing resource that doesn't require authentication, allow.
+
+		// For each path...
 		for path, methods := range noAuth {
+			// For each method in path...
 			for _, method := range methods {
 
-				// Request path allowed
+				// If request's path is allowed...
 				allowedPath := hs.Local.Request.URL.Path == path
 
-				// Request method allowed
+				// If request's method is allowed...
 				allowedMethod := hs.Local.Request.Method == strings.ToUpper(method)
 
+				// If both are allowed...
 				if allowedPath && allowedMethod {
+					// Allow
 					next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
 					return nil
 				}
@@ -29,13 +34,13 @@ func Authentication(next http.Handler) http.Handler {
 
 		}
 
-		// If not authenticated for all other resources, deny
+		// If not authenticated for all other resources, deny.
 		if err := hs.Authenticated(); err != nil {
 			hs.Local.RespondHtml(app.StatusMessage("danger", "invalid authentication token"), http.StatusBadRequest)
 			return err
 		}
 
-		// Should only be here if authenticated
+		// Should only be here if authenticated.
 		next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
 
 		return nil
