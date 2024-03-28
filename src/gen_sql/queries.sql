@@ -141,3 +141,24 @@ RETURNING *;
 INSERT INTO Rating (stars, posted_by, base_event)
 VALUES ($1, $2, $3)
 RETURNING *;
+-- name: ReadEvents :many
+SELECT BE.id,
+    BE.title,
+    BE.body,
+    BE.university,
+    BE.occurrence_time,
+    BE.contact_phone,
+    BE.contact_email,
+    C.title AS coord_title,
+    C.latitude,
+    C.longitude,
+    PUE.id AS public_event,
+    PUE.approved,
+    PRE.id AS private_event,
+    RE.id AS rso_event,
+    RE.rso AS rso
+FROM BaseEvent BE
+    FULL OUTER JOIN Coordinate C ON BE.occurrence_location = C.id
+    FULL OUTER JOIN PublicEvent PUE ON BE.id = PUE.id
+    FULL OUTER JOIN PrivateEvent PRE ON BE.id = PRE.id
+    FULL OUTER JOIN RsoEvent RE ON BE.id = RE.id;

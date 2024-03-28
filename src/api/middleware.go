@@ -7,6 +7,21 @@ import (
 	app "github.com/thatpix3l/collge_event_website/src/gen_templ"
 )
 
+// Post-request cleanup middleware
+func Cleanup(next http.Handler) http.Handler {
+	return http.HandlerFunc(StdHttpFunc("/", "*", func(hs HandlerState) error {
+
+		next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
+
+		if hs.Local.Conn != nil {
+			hs.Local.Conn.Release()
+			hs.Local.Conn = nil
+		}
+
+		return nil
+	}))
+}
+
 // Authentication middleware.
 func Authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(StdHttpFunc("/", "*", func(hs HandlerState) error {
@@ -39,9 +54,6 @@ func Authentication(next http.Handler) http.Handler {
 			hs.Local.RespondHtml(app.StatusMessage("danger", "invalid authentication token"), http.StatusBadRequest)
 			return err
 		}
-
-		// Should only be here if authenticated.
-		next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
 
 		return nil
 

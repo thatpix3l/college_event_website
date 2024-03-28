@@ -20,22 +20,17 @@ var ReadHomepage = addHandlerFunc("/", "get", func(hs HandlerState) error {
 
 	comp := app.LoginForm()
 
-	// If authenticated and authorized, allow access the list of events.
+	// If authenticated and authorized, allow access to default homepage.
 	if err := hs.Authenticated(); err == nil {
 
-		// Create queries connection.
-		if err := hs.Queries(); err != nil {
-			return err
-		}
-
-		// Get list of universities.
-		universities, err := runQuery(hs, noParam(hs.Local.Queries.ReadUniversities))
+		// Get list of events.
+		events, err := runQuery(hs, noParam(hs.Local.Queries.ReadEvents))
 		if err != nil {
 			return err
 		}
 
 		// Set as component to send.
-		comp = app.CreatedUniversities(universities)
+		comp = app.EventsHome(events)
 
 	} else {
 		log.Println(err)
@@ -52,11 +47,6 @@ var ReadHomepage = addHandlerFunc("/", "get", func(hs HandlerState) error {
 
 // Create login session based on provided form credentials.
 var CreateLogin = addHandlerFunc(utils.ApiPath("login"), "post", func(hs HandlerState) error {
-
-	// Acquire queries connection.
-	if err := hs.Queries(); err != nil {
-		return err
-	}
 
 	// Retrieve email from user.
 	email, err := hs.Local.FormGet("Email")
@@ -135,14 +125,14 @@ var CreateLogin = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Handler
 	// Store cookie into Set-Cookie header for future usage.
 	http.SetCookie(hs.Local.ResponseWriter, &authCookie)
 
-	// Get list of universities.
-	universities, err := runQuery(hs, noParam(hs.Local.Queries.ReadUniversities))
+	// Get list of events.
+	events, err := runQuery(hs, noParam(hs.Local.Queries.ReadEvents))
 	if err != nil {
 		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
 		return err
 	}
 
-	hs.Local.RespondHtml(app.CreatedUniversities(universities))
+	hs.Local.RespondHtml(app.EventsHome(events))
 
 	return nil
 
@@ -156,11 +146,6 @@ var ReadLogin = addHandlerFunc(utils.ApiPath("login"), "get", func(hs HandlerSta
 
 // Get signup form used to create a student account.
 var ReadSignup = addHandlerFunc(utils.ApiPath("signup"), "get", func(hs HandlerState) error {
-
-	// Acquire queries connection.
-	if err := hs.Queries(); err != nil {
-		return err
-	}
 
 	// Get list of created universities.
 	universities, err := runQuery(hs, noParam(hs.Local.Queries.ReadUniversities))
@@ -188,15 +173,9 @@ var CreateStudent = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs Hand
 		return err
 	}
 
-	// Acquire queries connection.
-	if err := hs.Queries(); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
-		return err
-	}
-
 	// Create student.
 	if _, err := runQuery(hs, hs.Local.Queries.CreateStudent); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusBadRequest)
+		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
 		return err
 	}
 
@@ -206,10 +185,6 @@ var CreateStudent = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs Hand
 
 // Get list of students.
 var ReadStudents = addHandlerFunc(utils.ApiPath("student"), "get", func(hs HandlerState) error {
-
-	if err := hs.Queries(); err != nil {
-		return err
-	}
 
 	students, err := runQuery(hs, noParam(hs.Local.Queries.ReadStudents))
 	if err != nil {
@@ -243,11 +218,6 @@ var ReadUniversities = addHandlerFunc(utils.ApiPath("university"), "get", func(h
 
 // Create a new university record.
 var CreateUniversity = addHandlerFunc(utils.ApiPath("university"), "post", func(hs HandlerState) error {
-
-	// Get queries connection to database.
-	if err := hs.Queries(); err != nil {
-		return err
-	}
 
 	// Create new university.
 	if _, err := runQuery(hs, hs.Local.Queries.CreateUniversity); err != nil {

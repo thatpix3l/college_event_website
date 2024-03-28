@@ -32,6 +32,7 @@ func Main() {
 	// Add middleware
 	r.Use(middleware.Logger)
 	r.Use(api.Authentication)
+	r.Use(api.Cleanup)
 
 	// Add routes
 	for path, pathFuncs := range api.HandleFuncs {

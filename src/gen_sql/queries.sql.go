@@ -391,6 +391,83 @@ func (q *Queries) CreateUniversity(ctx context.Context, arg CreateUniversityPara
 	return i, err
 }
 
+const readEvents = `-- name: ReadEvents :many
+SELECT BE.id,
+    BE.title,
+    BE.body,
+    BE.university,
+    BE.occurrence_time,
+    BE.contact_phone,
+    BE.contact_email,
+    C.title AS coord_title,
+    C.latitude,
+    C.longitude,
+    PUE.id AS public_event,
+    PUE.approved,
+    PRE.id AS private_event,
+    RE.id AS rso_event,
+    RE.rso AS rso
+FROM BaseEvent BE
+    FULL OUTER JOIN Coordinate C ON BE.occurrence_location = C.id
+    FULL OUTER JOIN PublicEvent PUE ON BE.id = PUE.id
+    FULL OUTER JOIN PrivateEvent PRE ON BE.id = PRE.id
+    FULL OUTER JOIN RsoEvent RE ON BE.id = RE.id
+`
+
+type ReadEventsRow struct {
+	ID             pgtype.Int4      `schema:",required"`
+	Title          pgtype.Text      `schema:",required"`
+	Body           pgtype.Text      `schema:",required"`
+	University     pgtype.Int4      `schema:",required"`
+	OccurrenceTime pgtype.Timestamp `schema:",required"`
+	ContactPhone   pgtype.Text      `schema:",required"`
+	ContactEmail   pgtype.Text      `schema:",required"`
+	CoordTitle     pgtype.Text      `schema:",required"`
+	Latitude       pgtype.Float8    `schema:",required"`
+	Longitude      pgtype.Float8    `schema:",required"`
+	PublicEvent    pgtype.Int4      `schema:",required"`
+	Approved       pgtype.Bool      `schema:",required"`
+	PrivateEvent   pgtype.Int4      `schema:",required"`
+	RsoEvent       pgtype.Int4      `schema:",required"`
+	Rso            pgtype.Int4      `schema:",required"`
+}
+
+func (q *Queries) ReadEvents(ctx context.Context) ([]ReadEventsRow, error) {
+	rows, err := q.db.Query(ctx, readEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReadEventsRow
+	for rows.Next() {
+		var i ReadEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Body,
+			&i.University,
+			&i.OccurrenceTime,
+			&i.ContactPhone,
+			&i.ContactEmail,
+			&i.CoordTitle,
+			&i.Latitude,
+			&i.Longitude,
+			&i.PublicEvent,
+			&i.Approved,
+			&i.PrivateEvent,
+			&i.RsoEvent,
+			&i.Rso,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const readStudents = `-- name: ReadStudents :many
 SELECT S.id,
     BU.name_first,

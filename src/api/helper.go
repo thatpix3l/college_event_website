@@ -105,7 +105,7 @@ type HandlerState struct {
 }
 
 // Create database connection if not already exist.
-func (hs *HandlerState) Conn() error {
+func (hs HandlerState) Conn() error {
 	if hs.Local.Conn != nil {
 		return nil
 	}
@@ -123,11 +123,7 @@ func (hs *HandlerState) Conn() error {
 }
 
 // Create queries connection if not already exist.
-func (hs *HandlerState) Queries() error {
-
-	if hs.Local.Queries != nil {
-		return nil
-	}
+func (hs HandlerState) Queries() error {
 
 	if err := hs.Conn(); err != nil {
 		return err
@@ -141,7 +137,7 @@ func (hs *HandlerState) Queries() error {
 type HandlerFunc func(hs HandlerState) error
 
 // Convert this package's custom handler function signature into Go's stdlib version.
-func StdHttpFunc(path string, method string, callback HandlerFunc) func(http.ResponseWriter, *http.Request) {
+func StdHttpFunc(path string, method string, handler HandlerFunc) func(http.ResponseWriter, *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
 
 		// Create handler state.
@@ -153,14 +149,11 @@ func StdHttpFunc(path string, method string, callback HandlerFunc) func(http.Res
 			},
 		}
 
-		// Run handler.
-		if err := callback(hs); err != nil {
-			log.Println(utils.ErrPrep(err, path, method))
-		}
+		hs.Queries()
 
-		// Perform cleanup.
-		if hs.Local.Conn != nil {
-			hs.Local.Conn.Release()
+		// Run handler.
+		if err := handler(hs); err != nil {
+			log.Println(utils.ErrPrep(err, path, method))
 		}
 
 	}

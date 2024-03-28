@@ -44,6 +44,21 @@ templ Home(comp templ.Component) {
 	</html>
 }
 
+templ EventsHome(events []gen_sql.ReadEventsRow) {
+	@NavBar("events")
+	@CreatedEvents(events)
+}
+
+templ CreatedEvents(events []gen_sql.ReadEventsRow) {
+	for _, event := range events {
+		<article>
+			<header>{ event.Title.String }</header>
+			{ event.Body.String }
+			<br/>
+		</article>
+	}
+}
+
 templ UniversityInput(universities []gen_sql.University) {
 	<label for="university-input"><b></b></label>
 	<select id="university-input" name="University" aria-label="Pick University" required>
@@ -103,7 +118,7 @@ templ CredentialsForm(title string, postPath string, altPath string, altAbout st
 			<h1>{ title }</h1>
 			<a hx-target="main" hx-get={ utils.ApiPath(altPath) }>{ altAbout }</a>
 		</header>
-		<form hx-post={ utils.ApiPath(postPath) } method="post">
+		<form hx-target="main" hx-post={ utils.ApiPath(postPath) } method="post">
 			@FormInput("email", "Email", "Email")
 			@FormInput("password", "PasswordPlaintext", "Password")
 			for _, ef := range extraForms {
@@ -125,14 +140,27 @@ templ SignupForm(universities []gen_sql.University) {
 		UniversityInput(universities))
 }
 
+var navBarItems = []string{"events", "rsos", "account"}
+
 templ NavBar(currentTitle string) {
 	<nav id="navbar">
 		<ul>
-			<li><strong>{ currentTitle }</strong></li>
+			<li>
+				<strong>
+					for _, navBarItem := range navBarItems {
+						if navBarItem == currentTitle {
+							{ utils.ToUpperFirst(navBarItem) }
+						}
+					}
+				</strong>
+			</li>
 		</ul>
 		<ul>
-			<li><a href="/">Home</a></li>
-			<li><a href="/settings">Settings</a></li>
+			for _, navBarItem := range navBarItems {
+				if navBarItem != currentTitle {
+					<li><a hx-target={ utils.ApiPath(navBarItem) }>{ utils.ToUpperFirst(navBarItem) }</a></li>
+				}
+			}
 		</ul>
 	</nav>
 }

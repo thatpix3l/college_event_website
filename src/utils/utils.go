@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/a-h/templ"
 )
@@ -22,4 +23,11 @@ func ErrPrep(err error, msgs ...string) error {
 		err = errors.Join(errors.New(msgs[i]), err)
 	}
 	return err
+}
+
+// Make the first character uppercase.
+func ToUpperFirst(s string) string {
+	sBytes := []byte(s)
+	sBytes[0] = []byte(strings.ToUpper(s))[0]
+	return string(sBytes)
 }
