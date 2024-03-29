@@ -136,6 +136,8 @@ func (hs HandlerState) Queries() error {
 
 type HandlerFunc func(hs HandlerState) error
 
+type HandlerFuncMiddleware func(hs HandlerState, next http.Handler) error
+
 // Convert this package's custom handler function signature into Go's stdlib version.
 func StdHttpFunc(path string, method string, handler HandlerFunc) func(http.ResponseWriter, *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
