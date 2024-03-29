@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -61,24 +60,23 @@ var CreateLogin = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Handler
 	}
 
 	// Get list of users.
-	users, err := runQuery(hs, noParam(hs.Local.Queries.ReadStudents), "unable to get list of students")
+	users, err := runQuery(hs, noParam(hs.Local.Queries.ReadBaseUsers), "unable to get list of students")
 	if err != nil {
 		return err
 	}
 
 	// Check if user with email exists in database.
-	userExists := false
-	var baseUser gen_sql.ReadStudentsRow
-	for _, user := range users {
-		if user.Email == email {
-			userExists = true
-			baseUser = user
-			break
+	baseUser := func() *gen_sql.ReadBaseUsersRow {
+		for _, user := range users {
+			if user.Email == email {
+				return &user
+			}
 		}
-	}
+		return nil
+	}()
 
 	// Check if user with provided email exists.
-	if !userExists {
+	if baseUser == nil {
 		hs.Local.RespondHtml(app.StatusMessage("danger", "unable to find user with email/password combination"), http.StatusInternalServerError)
 		return errors.New("user with provided email does not exist")
 	}
@@ -95,8 +93,8 @@ var CreateLogin = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Handler
 
 	claims := jwt.RegisteredClaims{
 		Issuer:    "college_event_website",
-		Subject:   strconv.Itoa(int(baseUser.ID)),
-		Audience:  jwt.ClaimStrings{"student"},
+		Subject:   baseUser.ID,
+		Audience:  jwt.ClaimStrings{"user"},
 		ExpiresAt: &expires,
 		NotBefore: &now,
 		IssuedAt:  &now,
@@ -174,7 +172,7 @@ var CreateStudent = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs Hand
 	}
 
 	// Create student.
-	if _, err := runQuery(hs, hs.Local.Queries.CreateStudent); err != nil {
+	if _, err := runQuery(hs, hs.Local.Queries.CreateBaseUser); err != nil {
 		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
 		return err
 	}
@@ -183,18 +181,15 @@ var CreateStudent = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs Hand
 
 })
 
-// Get list of students.
-var ReadStudents = addHandlerFunc(utils.ApiPath("student"), "get", func(hs HandlerState) error {
+// Get list of users.
+var ReadUsers = addHandlerFunc(utils.ApiPath("users"), "get", func(hs HandlerState) error {
 
-	students, err := runQuery(hs, noParam(hs.Local.Queries.ReadStudents))
+	students, err := runQuery(hs, noParam(hs.Local.Queries.ReadBaseUsers))
 	if err != nil {
 		return err
 	}
 
-	hs.Local.RespondHtml(app.CreatedStudents(students))
-	log.Println(students)
-
-	return nil
+	return hs.Local.RespondHtml(app.CreatedBaseUsers(students))
 
 })
 
@@ -232,4 +227,13 @@ var CreateUniversity = addHandlerFunc(utils.ApiPath("university"), "post", func(
 
 	return nil
 
+})
+
+var CreateEvent = addHandlerFunc(utils.ApiPath("event"), "post", func(hs HandlerState) error {
+
+	if _, err := runQuery(hs, hs.Local.Queries.CreateBaseEvent); err != nil {
+		return err
+	}
+
+	return nil
 })

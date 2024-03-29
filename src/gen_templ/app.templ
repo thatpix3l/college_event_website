@@ -3,7 +3,6 @@ package app
 import "github.com/thatpix3l/collge_event_website/src/utils"
 import "strings"
 import "github.com/thatpix3l/collge_event_website/src/gen_sql"
-import "strconv"
 
 templ Home(comp templ.Component) {
 	<!DOCTYPE html>
@@ -44,16 +43,16 @@ templ Home(comp templ.Component) {
 	</html>
 }
 
-templ EventsHome(events []gen_sql.ReadEventsRow) {
+templ EventsHome(events []gen_sql.Baseevent) {
 	@NavBar("events")
 	@CreatedEvents(events)
 }
 
-templ CreatedEvents(events []gen_sql.ReadEventsRow) {
+templ CreatedEvents(events []gen_sql.Baseevent) {
 	for _, event := range events {
 		<article>
-			<header>{ event.Title.String }</header>
-			{ event.Body.String }
+			<header>{ event.Title }</header>
+			{ event.About }
 			<br/>
 		</article>
 	}
@@ -64,7 +63,7 @@ templ UniversityInput(universities []gen_sql.University) {
 	<select id="university-input" name="University" aria-label="Pick University" required>
 		<option selected disabled value="">Pick University</option>
 		for _, university := range universities {
-			<option value={ strconv.Itoa(int(university.ID)) }>{ university.Title }</option>
+			<option value={ university.ID }>{ university.Title }</option>
 		}
 	</select>
 }
@@ -75,23 +74,19 @@ templ CreatedUniversities(universities []gen_sql.University) {
 			<header>{ university.Title }</header>
 			{ university.About }
 			<br/>
-			{ strconv.Itoa(int(university.Coordinate)) }
+			{ university.ID }
 		</article>
 	}
 }
 
-templ CreatedStudent(student gen_sql.ReadStudentsRow) {
-	<article>
-		<header>{ student.NameLast + ", " + student.NameFirst }</header>
-		{ student.UniversityName }
-		<br/>
-		{ strconv.Itoa(int(student.ID)) }
-	</article>
-}
-
-templ CreatedStudents(students []gen_sql.ReadStudentsRow) {
-	for _, student := range students {
-		@CreatedStudent(student)
+templ CreatedBaseUsers(users []gen_sql.ReadBaseUsersRow) {
+	for _, user := range users {
+		<article>
+			<header>{ user.NameLast + ", " + user.NameFirst }</header>
+			{ user.UniversityAbout.String }
+			<br/>
+			{ user.ID }
+		</article>
 	}
 }
 

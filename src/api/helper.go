@@ -155,7 +155,7 @@ func StdHttpFunc(path string, method string, handler HandlerFunc) func(http.Resp
 
 		// Run handler.
 		if err := handler(hs); err != nil {
-			log.Println(utils.ErrPrep(err, path, method))
+			log.Println(utils.ErrPrep(err, "path "+path+", method "+method))
 		}
 
 	}
@@ -275,6 +275,7 @@ var noAuth = map[string][]string{
 	"/":                     {"get"},
 	utils.ApiPath("login"):  {"get", "post"},
 	utils.ApiPath("signup"): {"get", "post"},
+	utils.ApiPath("test"):   {"post"},
 }
 
 // Wrapper that converts a query that doesn't accept concrete parameters into one that accepts an empty struct.

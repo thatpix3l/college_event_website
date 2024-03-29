@@ -9,98 +9,74 @@ import (
 )
 
 type Baseevent struct {
-	ID                 int32            `schema:",required"`
-	Title              string           `schema:",required"`
-	Body               string           `schema:",required"`
-	University         int32            `schema:",required"`
-	OccurrenceTime     pgtype.Timestamp `schema:",required"`
-	OccurrenceLocation int32            `schema:",required"`
-	ContactPhone       string           `schema:",required"`
-	ContactEmail       string           `schema:",required"`
+	ID           string           `schema:",required"`
+	Title        string           `schema:",required"`
+	About        string           `schema:",required"`
+	University   string           `schema:",required"`
+	StartTime    pgtype.Timestamp `schema:",required"`
+	ContactPhone string           `schema:",required"`
+	ContactEmail string           `schema:",required"`
+	EventType    string           `schema:",required"`
+	Latitude     float64          `schema:",required"`
+	Longitude    float64          `schema:",required"`
 }
 
 type Baseuser struct {
-	ID           int32  `schema:",required"`
-	NameFirst    string `schema:",required"`
-	NameLast     string `schema:",required"`
-	Email        string `schema:",required"`
-	PasswordHash string `schema:",required"`
+	ID           string      `schema:",required"`
+	NameFirst    string      `schema:",required"`
+	NameLast     string      `schema:",required"`
+	Email        string      `schema:",required"`
+	PasswordHash string      `schema:",required"`
+	IsSuperAdmin bool        `schema:",required"`
+	University   pgtype.Text `schema:",required"`
 }
 
 type Comment struct {
-	ID        int32       `schema:",required"`
+	ID        string      `schema:",required"`
 	Body      string      `schema:",required"`
-	PostedBy  pgtype.Int4 `schema:",required"`
-	BaseEvent int32       `schema:",required"`
-}
-
-type Coordinate struct {
-	ID        int32   `schema:",required"`
-	Title     string  `schema:",required"`
-	Latitude  float64 `schema:",required"`
-	Longitude float64 `schema:",required"`
-}
-
-type Privateevent struct {
-	ID int32 `schema:",required"`
-}
-
-type Publicevent struct {
-	ID       int32 `schema:",required"`
-	Approved bool  `schema:",required"`
+	PostedBy  pgtype.Text `schema:",required"`
+	BaseEvent string      `schema:",required"`
 }
 
 type Rating struct {
-	ID        int32       `schema:",required"`
+	ID        string      `schema:",required"`
 	Stars     int32       `schema:",required"`
-	PostedBy  pgtype.Int4 `schema:",required"`
-	BaseEvent int32       `schema:",required"`
+	PostedBy  pgtype.Text `schema:",required"`
+	BaseEvent string      `schema:",required"`
 }
 
 type Rso struct {
-	ID         int32  `schema:",required"`
+	ID         string `schema:",required"`
 	Title      string `schema:",required"`
-	University int32  `schema:",required"`
-}
-
-type Rsoevent struct {
-	ID  int32 `schema:",required"`
-	Rso int32 `schema:",required"`
+	About      string `schema:",required"`
+	University string `schema:",required"`
 }
 
 type Rsomember struct {
-	ID      int32 `schema:",required"`
-	Rso     int32 `schema:",required"`
-	IsAdmin bool  `schema:",required"`
-}
-
-type Student struct {
-	ID         int32 `schema:",required"`
-	University int32 `schema:",required"`
-}
-
-type Superadmin struct {
-	ID int32 `schema:",required"`
+	ID      string `schema:",required"`
+	Rso     string `schema:",required"`
+	IsAdmin bool   `schema:",required"`
 }
 
 type Tag struct {
-	ID    int32  `schema:",required"`
+	ID    string `schema:",required"`
 	Title string `schema:",required"`
 }
 
 type Taggedevent struct {
-	Tag       int32 `schema:",required"`
-	BaseEvent int32 `schema:",required"`
+	Tag       string `schema:",required"`
+	BaseEvent string `schema:",required"`
 }
 
 type Taggedrso struct {
-	Tag int32 `schema:",required"`
-	Rso int32 `schema:",required"`
+	Tag string `schema:",required"`
+	Rso string `schema:",required"`
 }
 
 type University struct {
-	ID         int32  `schema:",required"`
-	Title      string `schema:",required"`
-	Coordinate int32  `schema:",required"`
-	About      string `schema:",required"`
+	ID        string  `schema:",required"`
+	Title     string  `schema:",required"`
+	Latitude  float64 `schema:",required"`
+	Longitude float64 `schema:",required"`
+	About     string  `schema:",required"`
 }
