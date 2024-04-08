@@ -8,6 +8,7 @@ sql:
       uri: "postgres://postgres:postgres@127.0.0.1/college_event_website"
     gen:
       go:
+        emit_pointers_for_null_types: true
         package: "gen_sql"
         out: "src/gen_sql"
         sql_package: "pgx/v5"

@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -14,9 +17,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/schema"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thatpix3l/collge_event_website/src/gen_sql"
 	"github.com/thatpix3l/collge_event_website/src/utils"
 	"golang.org/x/crypto/bcrypt"
+
+	s "github.com/go-jet/jet/v2/postgres"
 )
 
 var tokenSecret = []byte(uuid.NewString())
@@ -24,6 +28,7 @@ var tokenSecret = []byte(uuid.NewString())
 // State accessible by all handlers.
 type globalState struct {
 	Pool *pgxpool.Pool
+	Db   *sql.DB
 }
 
 // API package's access to the global state.
@@ -33,22 +38,20 @@ var GlobalState = globalState{}
 type LocalState struct {
 	ResponseWriter http.ResponseWriter
 	Request        *http.Request
-	ParsedForm     bool             // already parsed request's form data?
-	Conn           *pgxpool.Conn    // database connection.
-	Queries        *gen_sql.Queries // queries connection.
+	ParsedForm     bool // already parsed request's form data?
 }
 
 // Parse form if never attempted.
-func (ls *LocalState) ParseForm() error {
-	if ls.ParsedForm {
+func (hs HandlerState) ParseForm() error {
+	if hs.Local.ParsedForm {
 		return nil
 	}
 
-	if err := ls.Request.ParseForm(); err != nil {
+	if err := hs.Local.Request.ParseForm(); err != nil {
 		return utils.ErrPrep(err, "unable to parse form")
 	}
 
-	ls.ParsedForm = true
+	hs.Local.ParsedForm = true
 
 	return nil
 }
@@ -77,22 +80,25 @@ func (ls LocalState) RespondHtml(component templ.Component, status ...int) error
 }
 
 // Hash plaintext password and store back into form for later usage.
-func (ls *LocalState) HashPasswordInput() error {
+func (hs HandlerState) HashPasswordInput() error {
 
 	// Parse form data if needed.
-	ls.ParseForm()
+	hs.ParseForm()
 
-	passwordRaw, err := ls.FormGet("PasswordPlaintext")
+	// Get plaintext password
+	passwordRaw, err := hs.FormGet("PasswordPlaintext")
 	if err != nil {
 		return utils.ErrPrep(err, "unable to get PasswordPlaintext")
 	}
 
+	// Hash password
 	passwordHashBuf, err := bcrypt.GenerateFromPassword([]byte(passwordRaw), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	ls.Request.Form["PasswordHash"] = []string{string(passwordHashBuf)}
+	// Store back into form data
+	hs.Local.Request.Form["PasswordHash"] = []string{string(passwordHashBuf)}
 
 	return nil
 
@@ -102,36 +108,6 @@ func (ls *LocalState) HashPasswordInput() error {
 type HandlerState struct {
 	Global *globalState
 	Local  *LocalState
-}
-
-// Create database connection if not already exist.
-func (hs HandlerState) Conn() error {
-	if hs.Local.Conn != nil {
-		return nil
-	}
-
-	// Acquire connection.
-	conn, err := hs.Global.Pool.Acquire(hs.Local.Request.Context())
-	if err != nil {
-		return errors.New("unable to acquire database connection")
-	}
-
-	// Store connection.
-	hs.Local.Conn = conn
-
-	return nil
-}
-
-// Create queries connection if not already exist.
-func (hs HandlerState) Queries() error {
-
-	if err := hs.Conn(); err != nil {
-		return err
-	}
-
-	hs.Local.Queries = gen_sql.New(hs.Local.Conn)
-
-	return nil
 }
 
 type HandlerFunc func(hs HandlerState) error
@@ -150,8 +126,6 @@ func StdHttpFunc(path string, method string, handler HandlerFunc) func(http.Resp
 				ResponseWriter: rw,
 			},
 		}
-
-		hs.Queries()
 
 		// Run handler.
 		if err := handler(hs); err != nil {
@@ -185,33 +159,77 @@ var decoder = func() *schema.Decoder {
 	return d
 }()
 
-// Run query; parse request for user input if necessary.
-func runQuery[Params any, Output any](hs HandlerState, query func(context.Context, Params) (Output, error), errorInfo ...string) (Output, error) {
+// Run Jet SQL statement; store in output pointer, if not nil.
+func runQuery(hs HandlerState, stmt s.Statement, output any) error {
 
-	// Output from running query.
-	var output Output
+	if output == nil {
+		// If no destination, execute query and don't store result
+		if _, err := stmt.Exec(hs.Global.Db); err != nil {
+			return err
+		}
 
-	// Parse form data.
-	if err := hs.Local.ParseForm(); err != nil {
-		return output, utils.ErrPrep(err, errorInfo...)
-	}
-
-	// Deserialize params needed by query.
-	var params Params
-	if err := decoder.Decode(&params, hs.Local.Request.Form); err != nil {
-		return output, utils.ErrPrep(err, errorInfo...)
-	}
-
-	// Run query.
-	if tempOut, err := query(hs.Local.Request.Context(), params); err != nil {
-
-		return output, utils.ErrPrep(err, errorInfo...)
 	} else {
-		output = tempOut
+		// Otherwise, execute query and store result
+		if err := stmt.QueryContext(hs.Local.Request.Context(), hs.Global.Db, output); err != nil {
+			return err
+		}
 	}
 
-	// Return output from transaction.
-	return output, nil
+	return nil
+}
+
+// Create flat map of key-value pairs from an HTTP Request's Form; truncates any extra values assigned to a single key.
+func (hs HandlerState) FormFlat(dest map[string]string) error {
+
+	// Make sure form can be parsed
+	if err := hs.ParseForm(); err != nil {
+		return err
+	}
+
+	// Populate map with the first value of the original Form data
+	for k, v := range hs.Local.Request.Form {
+		dest[k] = v[0]
+	}
+
+	return nil
+}
+
+// Copy all values from the HandlerState's Form to destination struct's fields
+func (hs HandlerState) ToParams(dest any) error {
+
+	// Build form if not already exists
+	if err := hs.ParseForm(); err != nil {
+		return err
+	}
+
+	// Verify that each field from the destination struct exists in the flattened Form
+	destStruct := reflect.Indirect(reflect.ValueOf(dest))
+	for i := 0; i < destStruct.NumField(); i++ {
+
+		field := destStruct.Type().Field(i) // struct field
+		fieldName := field.Name             // struct field name
+
+		// Check if the field is a primary key
+		tags := strings.Split(field.Tag.Get("sql"), ",")
+		isPrimaryKey := false
+		for _, tag := range tags {
+			if tag == "primary_key" {
+				isPrimaryKey = true
+				break
+			}
+		}
+
+		// Error if field does not exist from Form and is not a primary key.
+		if _, ok := hs.Local.Request.Form[fieldName]; !ok && !isPrimaryKey {
+			return fmt.Errorf("form to SQL params: form is missing key \"%s\"", fieldName)
+		}
+	}
+
+	if err := decoder.Decode(dest, hs.Local.Request.Form); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type AuthenticatedUsers struct {
@@ -275,7 +293,7 @@ var noAuth = map[string][]string{
 	"/":                     {"get"},
 	utils.ApiPath("login"):  {"get", "post"},
 	utils.ApiPath("signup"): {"get", "post"},
-	utils.ApiPath("test"):   {"post"},
+	utils.ApiPath("init"):   {"post"},
 }
 
 // Wrapper that converts a query that doesn't accept concrete parameters into one that accepts an empty struct.
@@ -285,20 +303,35 @@ func noParam[Output any](query func(context.Context) (Output, error)) func(conte
 	}
 }
 
-func (ls *LocalState) FormGet(key string) (string, error) {
+// Get value from form
+func (hs HandlerState) FormGet(key string) (string, error) {
 
 	var val string
 
 	// Parse form, exit on error.
-	if err := ls.ParseForm(); err != nil {
+	if err := hs.ParseForm(); err != nil {
 		return "", err
 	}
 
 	// Get value, exit if empty.
-	val = ls.Request.Form.Get(key)
+	val = hs.Local.Request.Form.Get(key)
 	if val == "" {
 		return val, errors.New("form with provided key has no value")
 	}
 
 	return val, nil
+}
+
+func onTagOption(customStruct any, tagName string, callback func(tagOptions []string) error) error {
+	customStructType := reflect.TypeOf(customStruct)
+	for i := 0; i < customStructType.NumField(); i++ {
+		field := customStructType.Field(i)
+		tagOptions := strings.Split(field.Tag.Get(tagName), ",")
+
+		if err := callback(tagOptions); err != nil {
+			return err
+		}
+
+	}
+	return nil
 }

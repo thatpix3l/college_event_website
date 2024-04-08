@@ -17,18 +17,6 @@ func middlewareBuilder(path string, method string, middleware HandlerFuncMiddlew
 	}
 }
 
-// Post-request cleanup middleware
-var Cleanup = middlewareBuilder("/", "*", func(hs HandlerState, next http.Handler) error {
-	next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
-
-	if hs.Local.Conn != nil {
-		hs.Local.Conn.Release()
-		hs.Local.Conn = nil
-	}
-
-	return nil
-})
-
 // Authentication middleware.
 var Authentication = middlewareBuilder("/", "*", func(hs HandlerState, next http.Handler) error {
 

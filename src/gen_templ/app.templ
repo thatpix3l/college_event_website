@@ -4,6 +4,14 @@ import "github.com/thatpix3l/collge_event_website/src/utils"
 import "strings"
 import "github.com/thatpix3l/collge_event_website/src/gen_sql"
 
+import m "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/model"
+
+type statusMessage string
+
+func Success() statusMessage { return statusMessage("success") }
+func Warning() statusMessage { return statusMessage("warning") }
+func Failure() statusMessage { return statusMessage("failure") }
+
 templ Home(comp templ.Component) {
 	<!DOCTYPE html>
 	<html>
@@ -43,24 +51,24 @@ templ Home(comp templ.Component) {
 	</html>
 }
 
-templ EventsHome(events []gen_sql.Baseevent) {
+templ EventsHome(events []gen_sql.Event) {
 	@NavBar("events")
 	@CreatedEvents(events)
 }
 
-templ CreatedEvents(events []gen_sql.Baseevent) {
+templ CreatedEvents(events []gen_sql.Event) {
 	for _, event := range events {
 		<article>
-			<header>{ event.Title }</header>
-			{ event.About }
+			<header>{ event.Baseevent.Title }</header>
+			{ event.Baseevent.About }
 			<br/>
 		</article>
 	}
 }
 
-templ UniversityInput(universities []gen_sql.University) {
+templ UniversityInput(universities []m.University) {
 	<label for="university-input"><b></b></label>
-	<select id="university-input" name="University" aria-label="Pick University" required>
+	<select id="university-input" name="UniversityID" aria-label="Pick University" required>
 		<option selected disabled value="">Pick University</option>
 		for _, university := range universities {
 			<option value={ university.ID }>{ university.Title }</option>
@@ -68,7 +76,7 @@ templ UniversityInput(universities []gen_sql.University) {
 	</select>
 }
 
-templ CreatedUniversities(universities []gen_sql.University) {
+templ CreatedUniversities(universities []m.University) {
 	for _, university := range universities {
 		<article>
 			<header>{ university.Title }</header>
@@ -79,19 +87,17 @@ templ CreatedUniversities(universities []gen_sql.University) {
 	}
 }
 
-templ CreatedBaseUsers(users []gen_sql.ReadBaseUsersRow) {
+templ CreatedBaseUsers(users []gen_sql.User) {
 	for _, user := range users {
 		<article>
-			<header>{ user.NameLast + ", " + user.NameFirst }</header>
-			{ user.UniversityAbout.String }
-			<br/>
-			{ user.ID }
+			<header>{ user.Baseuser.NameLast + ", " + user.Baseuser.NameFirst }</header>
+			{ user.Baseuser.ID }
 		</article>
 	}
 }
 
-templ StatusMessage(alertType string, msg string) {
-	<div class={ "alert", "alert-" + alertType } role="alert">{ msg }</div>
+templ StatusMessage(alertType statusMessage, msg string) {
+	<div class={ "alert", "alert-" + string(alertType) } role="alert">{ msg }</div>
 }
 
 templ FormInput(inputType string, id string, title string) {
@@ -128,7 +134,7 @@ templ LoginForm() {
 	@CredentialsForm("Login", "login", "signup", "Need to create an account?")
 }
 
-templ SignupForm(universities []gen_sql.University) {
+templ SignupForm(universities []m.University) {
 	@CredentialsForm("Signup", "signup", "login", "Already have an account?",
 		FormInput("text", "NameFirst", "First Name"),
 		FormInput("text", "NameLast", "Last Name"),
