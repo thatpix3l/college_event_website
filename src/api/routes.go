@@ -73,11 +73,6 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 		return err
 	}
 
-	users := []User{}
-	if err := runQuery(hs, ReadUsers, &users); err != nil {
-		return err
-	}
-
 	// Error if could not find user with email
 	if len(usersWithEmail) == 0 {
 		hs.Local.RespondHtml(app.StatusMessage(app.Failure(), "unable to find user with email/password combination"), http.StatusInternalServerError)
