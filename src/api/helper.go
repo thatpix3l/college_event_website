@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -178,23 +177,7 @@ func runQuery(hs HandlerState, stmt s.Statement, output any) error {
 	return nil
 }
 
-// Create flat map of key-value pairs from an HTTP Request's Form; truncates any extra values assigned to a single key.
-func (hs HandlerState) FormFlat(dest map[string]string) error {
-
-	// Make sure form can be parsed
-	if err := hs.ParseForm(); err != nil {
-		return err
-	}
-
-	// Populate map with the first value of the original Form data
-	for k, v := range hs.Local.Request.Form {
-		dest[k] = v[0]
-	}
-
-	return nil
-}
-
-// Copy all values from the HandlerState's Form to destination struct's fields
+// Copy all required fields from the HandlerState's Form to destination struct
 func (hs HandlerState) ToParams(dest any) error {
 
 	// Build form if not already exists
@@ -237,12 +220,14 @@ type AuthenticatedUsers struct {
 	lock sync.RWMutex
 }
 
+// Add claims for a logged in user into runtime cache
 func (au *AuthenticatedUsers) Add(claims jwt.RegisteredClaims) {
 	au.lock.Lock()
 	au.list = append(au.list, claims)
 	au.lock.Unlock()
 }
 
+// Runtime cache of authenticated users
 var authenticatedUsers = AuthenticatedUsers{
 	list: []jwt.RegisteredClaims{},
 }
@@ -296,13 +281,6 @@ var noAuth = map[string][]string{
 	utils.ApiPath("init"):   {"post"},
 }
 
-// Wrapper that converts a query that doesn't accept concrete parameters into one that accepts an empty struct.
-func noParam[Output any](query func(context.Context) (Output, error)) func(context.Context, struct{}) (Output, error) {
-	return func(ctx context.Context, p struct{}) (Output, error) {
-		return query(ctx)
-	}
-}
-
 // Get value from form
 func (hs HandlerState) FormGet(key string) (string, error) {
 
@@ -320,18 +298,4 @@ func (hs HandlerState) FormGet(key string) (string, error) {
 	}
 
 	return val, nil
-}
-
-func onTagOption(customStruct any, tagName string, callback func(tagOptions []string) error) error {
-	customStructType := reflect.TypeOf(customStruct)
-	for i := 0; i < customStructType.NumField(); i++ {
-		field := customStructType.Field(i)
-		tagOptions := strings.Split(field.Tag.Get(tagName), ",")
-
-		if err := callback(tagOptions); err != nil {
-			return err
-		}
-
-	}
-	return nil
 }

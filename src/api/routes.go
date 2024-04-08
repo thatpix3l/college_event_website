@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -304,16 +305,22 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 
 	for _, form := range universityForms {
 
-		// Copy into HandlerState's form data the university Form
+		fmt.Println()
+		fmt.Println()
+		fmt.Println()
+		fmt.Println()
+		fmt.Println()
+
+		// Copy current university Form into HandlerState's Form
 		hs.Local.Request.Form = url.Values(form)
 
-		// Copy Form data into params struct for University table
+		// Marhsal current Form into params struct
 		params := m.University{}
 		if err := hs.ToParams(&params); err != nil {
 			return err
 		}
 
-		// Insert university
+		// Insert university using params struct as the values
 		if err := runQuery(hs, CreateUniversity().MODEL(params), nil); err != nil {
 			return err
 		}
