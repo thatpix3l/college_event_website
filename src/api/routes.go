@@ -30,7 +30,7 @@ var ReadHomepageErr = addHandlerFunc("/", "get", func(hs HandlerState) error {
 
 		// Get list of events.
 		events := []Event{}
-		if err := runQuery(hs, ReadEvents, &events); err != nil {
+		if err := runQuery(hs, ReadEvents(), &events); err != nil {
 			return err
 		}
 
@@ -66,7 +66,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	}
 
 	// Get list of existing users that have matching email
-	readUsersWithEmail := ReadUsers.WHERE(t.Baseuser.Email.EQ(postgres.String(email)))
+	readUsersWithEmail := ReadUsers().WHERE(t.Baseuser.Email.EQ(postgres.String(email)))
 	usersWithEmail := []User{}
 	runQuery(hs, readUsersWithEmail, &usersWithEmail)
 	if err != nil {
@@ -126,7 +126,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 
 	// Get list of events.
 	events := []Event{}
-	if err := runQuery(hs, ReadEvents, &events); err != nil {
+	if err := runQuery(hs, ReadEvents(), &events); err != nil {
 		return err
 	}
 
@@ -147,7 +147,7 @@ var ReadLoginErr = addHandlerFunc(utils.ApiPath("login"), "get", func(hs Handler
 var ReadSignupErr = addHandlerFunc(utils.ApiPath("signup"), "get", func(hs HandlerState) error {
 
 	universities := []m.University{}
-	if err := runQuery(hs, ReadUniversities, &universities); err != nil {
+	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
 		return err
 	}
 
@@ -179,14 +179,14 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 	}
 
 	// Create BaseUser
-	createBaseUser := CreateBaseUser.MODEL(baseUserParams).RETURNING(t.Baseuser.ID)
+	createBaseUser := CreateBaseUser().MODEL(baseUserParams).RETURNING(t.Baseuser.ID)
 	newBaseUsers := []m.Baseuser{}
 	if err := runQuery(hs, createBaseUser, &newBaseUsers); err != nil {
 		return err
 	}
 
 	// Prepare SQL statement for promoting the BaseUser into a Student.
-	createStudent := CreateStudent.VALUES(newBaseUsers[0].ID)
+	createStudent := CreateStudent().VALUES(newBaseUsers[0].ID)
 
 	// Create Student
 	if err := runQuery(hs, createStudent, nil); err != nil {
@@ -202,7 +202,7 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 var ReadUsersErr = addHandlerFunc(utils.ApiPath("users"), "get", func(hs HandlerState) error {
 
 	students := []User{}
-	if err := runQuery(hs, ReadUsers, students); err != nil {
+	if err := runQuery(hs, ReadUsers(), students); err != nil {
 		return err
 	}
 
@@ -215,7 +215,7 @@ var ReadUniversitiesErr = addHandlerFunc(utils.ApiPath("university"), "get", fun
 
 	// Read list of created universities.
 	universities := []m.University{}
-	if err := runQuery(hs, ReadUniversities, &universities); err != nil {
+	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
 		return err
 	}
 
@@ -240,7 +240,7 @@ var CreateUniversityErr = addHandlerFunc(utils.ApiPath("university"), "post", fu
 
 	// Create new university.
 	universities := []m.University{}
-	if err := runQuery(hs, ReadUniversities, &universities); err != nil {
+	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
 		hs.Local.RespondHtml(app.StatusMessage("danger", "Unable to create university"), http.StatusInternalServerError)
 		return err
 	}
@@ -266,7 +266,7 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 		return err
 	}
 
-	if err := runQuery(hs, CreateUniversity.MODEL(createUniversityParams), nil); err != nil {
+	if err := runQuery(hs, CreateUniversity().MODEL(createUniversityParams), nil); err != nil {
 		return err
 	}
 
@@ -293,7 +293,7 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 
 	// Get list of existing universities
 	universities := []m.University{}
-	if err := runQuery(hs, ReadUniversities, &universities); err != nil {
+	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
 		return err
 	}
 
@@ -314,7 +314,7 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 		}
 
 		// Insert university
-		if err := runQuery(hs, CreateUniversity.MODEL(params), nil); err != nil {
+		if err := runQuery(hs, CreateUniversity().MODEL(params), nil); err != nil {
 			return err
 		}
 

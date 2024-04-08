@@ -6,7 +6,13 @@ import (
 	t "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/table"
 )
 
-var ReadEvents = s.SELECT(
+func queryToFunc[T any](query T) func() T {
+	return func() T {
+		return query
+	}
+}
+
+var ReadEvents = queryToFunc(s.SELECT(
 	t.Baseevent.AllColumns,
 	t.Rsoevent.AllColumns,
 	t.Publicevent.AllColumns,
@@ -19,7 +25,7 @@ var ReadEvents = s.SELECT(
 	).LEFT_JOIN(
 		t.Privateevent, t.Baseevent.ID.EQ(t.Privateevent.ID),
 	),
-)
+))
 
 type Event struct {
 	m.Baseevent
@@ -28,9 +34,9 @@ type Event struct {
 	*m.Privateevent
 }
 
-var CreateBaseUser = t.Baseuser.INSERT(t.Baseuser.MutableColumns)
+var CreateBaseUser = queryToFunc(t.Baseuser.INSERT(t.Baseuser.MutableColumns))
 
-var ReadUsers = s.SELECT(
+var ReadUsers = queryToFunc(s.SELECT(
 	t.Baseuser.AllColumns,
 	t.Student.AllColumns,
 	t.Superadmin.AllColumns,
@@ -43,7 +49,7 @@ var ReadUsers = s.SELECT(
 	).LEFT_JOIN(
 		t.Rsomember, t.Baseuser.ID.EQ(t.Rsomember.ID),
 	),
-)
+))
 
 type User struct {
 	m.Baseuser
@@ -52,12 +58,12 @@ type User struct {
 	*m.Rsomember
 }
 
-var CreateUniversity = t.University.INSERT(t.University.MutableColumns)
+var CreateUniversity = queryToFunc(t.University.INSERT(t.University.MutableColumns))
 
-var ReadUniversities = s.SELECT(
+var ReadUniversities = queryToFunc(s.SELECT(
 	t.University.AllColumns,
 ).FROM(
 	t.University,
-)
+))
 
-var CreateStudent = t.Student.INSERT(t.Student.ID)
+var CreateStudent = queryToFunc(t.Student.INSERT(t.Student.ID))
