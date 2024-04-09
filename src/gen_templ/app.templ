@@ -6,11 +6,13 @@ import "github.com/thatpix3l/cew/src/gen_sql"
 
 import m "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/model"
 
-type statusMessage string
+type status struct {
+	value string
+}
 
-func Success() statusMessage { return statusMessage("success") }
-func Warning() statusMessage { return statusMessage("warning") }
-func Failure() statusMessage { return statusMessage("failure") }
+var Success = status{"success"}
+var Warning = status{"warning"}
+var Failure = status{"failure"}
 
 templ Home(comp templ.Component) {
 	<!DOCTYPE html>
@@ -51,28 +53,68 @@ templ Home(comp templ.Component) {
 	</html>
 }
 
-templ CreatedEvents(events []gen_sql.Event) {
-	<div id="interactive">
-		for _, event := range events {
-			<article>
-				<header>{ event.Baseevent.Title }</header>
-				@templ.Raw(event.Baseevent.About)
-				<br/>
-				if len(event.Tags) > 0 {
-					<footer>
-						for i, tag := range event.Tags {
-							if i > 0 {
-								{ ", " }
-							}
-							<a>
-								{ tag.Title }
-							</a>
-						}
-					</footer>
+func submitEventInfo() string {
+	return "document.querySelector(\"#event-info\")"
+}
+
+templ Event(event gen_sql.Event) {
+	<article id={ "event-" + event.Baseevent.ID }>
+		<header>
+			<form
+				id="event-info"
+				hx-get={ utils.ApiPath("event/info") }
+				hx-target="#interactive"
+				hx-trigger={ "click from:#event-" + event.Baseevent.ID + "  a" }
+			>
+				<input type="hidden" name="EventId" value={ event.Baseevent.ID }/>
+				<a>{ event.Baseevent.Title }</a>
+			</form>
+		</header>
+		@templ.Raw(event.Baseevent.About)
+		if len(event.Tags) > 0 {
+			<footer>
+				for i, tag := range event.Tags {
+					if i > 0 {
+						{ ", " }
+					}
+					<a>{ tag.Title }</a>
 				}
-			</article>
+			</footer>
 		}
+	</article>
+}
+
+templ EventList(events []gen_sql.Event) {
+	for _, event := range events {
+		@Event(event)
+	}
+}
+
+templ Comment(user gen_sql.User, comment m.Comment) {
+	<article id={ "comment-" + comment.ID }>
+		{ comment.Body }
+		<footer>
+			if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
+				<button>Edit</button>
+				<button>Delete</button>
+			}
+		</footer>
+	</article>
+}
+
+templ CommentList(user gen_sql.User, comments []m.Comment) {
+	for _, comment := range comments {
+		@Comment(user, comment)
+	}
+}
+
+templ Interactive(comp templ.Component) {
+	<div id="interactive">
+		@comp
 	</div>
+}
+
+templ EventInfo(event gen_sql.Event) {
 }
 
 templ UniversityInput(universities []m.University) {
@@ -105,8 +147,8 @@ templ CreatedBaseUsers(users []gen_sql.User) {
 	}
 }
 
-templ StatusMessage(alertType statusMessage, msg string) {
-	<div class={ "alert", "alert-" + string(alertType) } role="alert">{ msg }</div>
+templ StatusMessage(alert status, desc string) {
+	<div class={ "alert", "alert-" + alert.value } role="alert">{ desc }</div>
 }
 
 templ FormInput(inputType string, id string, title string) {
@@ -178,7 +220,7 @@ templ NavBar(currentTitle string) {
 	</nav>
 }
 
-templ EventsToolbar() {
+templ EventListToolbar() {
 	<nav>
 		<ul>
 			<li><button hx-target={ utils.ApiPath("event/create") } hx-target="#interactive">Create Event</button></li>

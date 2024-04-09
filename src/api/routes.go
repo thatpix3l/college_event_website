@@ -11,7 +11,7 @@ import (
 	"net/url"
 
 	"github.com/a-h/templ"
-	"github.com/go-jet/jet/v2/postgres"
+	pg "github.com/go-jet/jet/v2/postgres"
 	"github.com/microcosm-cc/bluemonday"
 	. "github.com/thatpix3l/cew/src/gen_sql"
 	"github.com/thatpix3l/cew/src/utils"
@@ -32,7 +32,7 @@ var ReadHomepageErr = addHandlerFunc("/", "get", func(hs HandlerState) error {
 	if err := hs.Authenticated(); err == nil {
 
 		// Get events home UI
-		createEvent, err := eventsHome(hs)
+		createEvent, err := eventListHome(hs)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	}
 
 	// Get list of existing users that have matching email
-	readUsersWithEmail := ReadUsers().WHERE(t.Baseuser.Email.EQ(postgres.String(email)))
+	readUsersWithEmail := ReadUsers().WHERE(t.Baseuser.Email.EQ(pg.String(email)))
 	usersWithEmail := []User{}
 	runQuery(hs, readUsersWithEmail, &usersWithEmail)
 	if err != nil {
@@ -78,7 +78,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 
 	// Error if could not find user with email
 	if len(usersWithEmail) == 0 {
-		hs.Local.RespondHtml(app.StatusMessage(app.Failure(), "unable to find user with email/password combination"), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage(app.Failure, "unable to find user with email/password combination"), http.StatusInternalServerError)
 		return errors.New("could not find user with matching email")
 	}
 
@@ -87,7 +87,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 
 	// Check if provided password matches user.
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(passwordPlaintext)); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", "unable to find user with email/password combination"), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage(app.Failure, "unable to find user with email/password combination"), http.StatusInternalServerError)
 		return utils.ErrPrep(err, "password does not match user with provided email")
 	}
 
@@ -95,7 +95,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	hs.Authenticate(user)
 
 	// Get list of events; customized based on user authorization
-	comp, err := eventsHome(hs)
+	comp, err := eventListHome(hs)
 	if err != nil {
 		return err
 	}
@@ -131,8 +131,8 @@ var ReadSignupErr = addHandlerFunc(utils.ApiPath("signup"), "get", func(hs Handl
 	return nil
 })
 
-// UI for viewing and creating events
-func eventsHome(hs HandlerState) (templ.Component, error) {
+// Build query that returns list of events viewable by user in current handle
+func eventListQuery(hs HandlerState) (pg.SelectStatement, error) {
 
 	// Get user from HandlerState
 	user := User{}
@@ -141,9 +141,9 @@ func eventsHome(hs HandlerState) (templ.Component, error) {
 	}
 
 	// Make bool expression that checks if an event and student both are from the same university
-	sameUniversity := postgres.Bool(false)
+	sameUniversity := pg.Bool(false)
 	if user.Student != nil && user.Student.UniversityID != nil {
-		sameUniversity = t.Baseevent.ID.EQ(postgres.String(*user.Student.UniversityID))
+		sameUniversity = t.Baseevent.ID.EQ(pg.String(*user.Student.UniversityID))
 	}
 
 	// If event is public and approved, allow
@@ -153,23 +153,48 @@ func eventsHome(hs HandlerState) (templ.Component, error) {
 	private := t.Baseevent.ID.EQ(t.Privateevent.ID).AND(sameUniversity)
 
 	// If event is rso and user is part of the same university and part of the rso related to event, allow
-	sameRso := postgres.Bool(false)
+	sameRso := pg.Bool(false)
 	if user.Rsomember != nil {
-		sameRso = t.Rsoevent.RsoID.EQ(postgres.String(user.Rsomember.RsoID))
+		sameRso = t.Rsoevent.RsoID.EQ(pg.String(user.Rsomember.RsoID))
 	}
 
 	rso := t.Baseevent.ID.EQ(t.Rsoevent.ID).AND(sameRso).AND(sameUniversity)
 
+	query := ReadEvents().WHERE(public.OR(private).OR(rso))
+
+	return query, nil
+}
+
+// Get list of events
+func eventList(hs HandlerState) ([]Event, error) {
+
+	query, err := eventListQuery(hs)
+	if err != nil {
+		return nil, err
+	}
+
 	events := []Event{}
-	if err := runQuery(hs, ReadEvents().WHERE(public.OR(private).OR(rso)), &events); err != nil {
+	if err := runQuery(hs, query, &events); err != nil {
+		return nil, err
+	}
+
+	return events, nil
+
+}
+
+// Create UI for the homepage of a list of events
+func eventListHome(hs HandlerState) (templ.Component, error) {
+
+	events, err := eventList(hs)
+	if err != nil {
 		return nil, err
 	}
 
 	// Create UI that uses current state of list of events
 	return app.StackComponents(
 		app.NavBar("events"),
-		app.EventsToolbar(),
-		app.CreatedEvents(events),
+		app.EventListToolbar(),
+		app.Interactive(app.EventList(events)),
 	), nil
 }
 
@@ -178,7 +203,7 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 
 	// Hash user-provided password input.
 	if err := hs.HashPasswordInput(); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage(app.Failure, err.Error()), http.StatusInternalServerError)
 		return err
 	}
 
@@ -201,7 +226,7 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 	// Create Student based off of base userr
 	user.Student = &m.Student{}
 	if err := runQuery(hs, CreateStudent().VALUES(user.Baseuser.ID).RETURNING(t.Student.AllColumns), user.Student); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage(app.Failure, err.Error()), http.StatusInternalServerError)
 		return err
 	}
 
@@ -209,7 +234,7 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 	hs.Authenticate(user)
 
 	// Get list events viewable by user
-	comp, err := eventsHome(hs)
+	comp, err := eventListHome(hs)
 	if err != nil {
 		return err
 	}
@@ -222,7 +247,7 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 		return err
 	}
 
-	if comp, err := eventsHome(hs); err != nil {
+	if comp, err := eventListHome(hs); err != nil {
 		return err
 	} else {
 		hs.Local.RespondHtml(comp)
@@ -268,12 +293,12 @@ var CreateUniversityErr = addHandlerFunc(utils.ApiPath("university"), "post", fu
 	// Create new university.
 	universities := []m.University{}
 	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", "Unable to create university"), http.StatusInternalServerError)
+		hs.Local.RespondHtml(app.StatusMessage(app.Failure, "Unable to create university"), http.StatusInternalServerError)
 		return err
 	}
 
 	// Respond with status.
-	if err := hs.Local.RespondHtml(app.StatusMessage("success", "Created new university!")); err != nil {
+	if err := hs.Local.RespondHtml(app.StatusMessage(app.Success, "Created new university!")); err != nil {
 		return err
 	}
 
@@ -314,7 +339,7 @@ var ReadRsosErr = addHandlerFunc(utils.ApiPath("rsos"), "get", func(hs HandlerSt
 
 var ReadEventsErr = addHandlerFunc(utils.ApiPath("events"), "get", func(hs HandlerState) error {
 
-	comp, err := eventsHome(hs)
+	comp, err := eventListHome(hs)
 	if err != nil {
 		return err
 	}
@@ -486,7 +511,51 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 	}
 	fmt.Println("done")
 
-	hs.Local.RespondHtml(app.StatusMessage(app.Success(), "Initialized database with default values"))
+	hs.Local.RespondHtml(app.StatusMessage(app.Success, "Initialized database with default values"))
+
+	return nil
+})
+
+var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", func(hs HandlerState) error {
+
+	// Get event ID
+	eventId, err := hs.FormGet("EventId")
+	if err != nil {
+		return err
+	}
+
+	// Build query for getting list of events user can view
+	query, err := eventListQuery(hs)
+	if err != nil {
+		return err
+	}
+
+	query = query.WHERE(t.Baseevent.ID.EQ(pg.String(eventId)))
+
+	// Run query and story output
+	events := []Event{}
+	if err := runQuery(hs, query, &events); err != nil {
+		return err
+	}
+
+	// Error if event with ID does not exist
+	if len(events) == 0 {
+		return err
+	}
+
+	// Get first match; DB constraints ensure there is at most 1
+	event := events[0]
+
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	// Respond to user with UI for viewing event
+	hs.Local.RespondHtml(app.StackComponents(
+		app.Event(event),
+		app.CommentList(user, event.Comments),
+	))
 
 	return nil
 })

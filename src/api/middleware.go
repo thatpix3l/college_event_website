@@ -45,7 +45,7 @@ var Authentication = middlewareBuilder("/", "*", func(hs HandlerState, next http
 
 	// If not authenticated for all other resources, deny.
 	if err := hs.Authenticated(); err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", "invalid authentication token"), http.StatusBadRequest)
+		hs.Local.RespondHtml(app.StatusMessage(app.Failure, "invalid authentication token"), http.StatusBadRequest)
 		return err
 	}
 

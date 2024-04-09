@@ -37,7 +37,11 @@ func ReadEvents() s.SelectStatement {
 		).LEFT_JOIN(
 			t.Taggedevent, t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID),
 		).LEFT_JOIN(
-			t.Tag, t.Taggedevent.TagID.EQ(t.Tag.ID),
+			t.Tag, t.Tag.ID.EQ(t.Taggedevent.TagID).AND(t.Taggedevent.BaseEventID.EQ(t.Baseevent.ID)),
+		).LEFT_JOIN(
+			t.Comment, t.Comment.BaseEventID.EQ(t.Baseevent.ID),
+		).LEFT_JOIN(
+			t.Rating, t.Rating.BaseEventID.EQ(t.Baseevent.ID),
 		),
 	)
 }
@@ -52,7 +56,9 @@ type Event struct {
 	*m.Publicevent
 	*m.Privateevent
 	*m.University
-	Tags []m.Tag
+	Tags     []m.Tag
+	Ratings  []m.Rating
+	Comments []m.Comment
 }
 
 func CreateBaseUser() s.InsertStatement { return t.Baseuser.INSERT(t.Baseuser.MutableColumns) }
