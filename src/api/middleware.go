@@ -49,6 +49,9 @@ var Authentication = middlewareBuilder("/", "*", func(hs HandlerState, next http
 		return err
 	}
 
+	// Should only be here if authenticated as a fallback
+	next.ServeHTTP(hs.Local.ResponseWriter, hs.Local.Request)
+
 	return nil
 
 })

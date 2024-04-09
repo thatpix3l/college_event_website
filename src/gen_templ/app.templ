@@ -51,19 +51,28 @@ templ Home(comp templ.Component) {
 	</html>
 }
 
-templ EventsHome(events []gen_sql.Event) {
-	@NavBar("events")
-	@CreatedEvents(events)
-}
-
 templ CreatedEvents(events []gen_sql.Event) {
-	for _, event := range events {
-		<article>
-			<header>{ event.Baseevent.Title }</header>
-			{ event.Baseevent.About }
-			<br/>
-		</article>
-	}
+	<div id="interactive">
+		for _, event := range events {
+			<article>
+				<header>{ event.Baseevent.Title }</header>
+				@templ.Raw(event.Baseevent.About)
+				<br/>
+				if len(event.Tags) > 0 {
+					<footer>
+						for i, tag := range event.Tags {
+							if i > 0 {
+								{ ", " }
+							}
+							<a>
+								{ tag.Title }
+							</a>
+						}
+					</footer>
+				}
+			</article>
+		}
+	</div>
 }
 
 templ UniversityInput(universities []m.University) {
@@ -148,20 +157,53 @@ templ NavBar(currentTitle string) {
 		<ul>
 			<li>
 				<strong>
-					for _, navBarItem := range navBarItems {
-						if navBarItem == currentTitle {
-							{ utils.ToUpperFirst(navBarItem) }
-						}
-					}
+					{ utils.ToUpperFirst(currentTitle) }
 				</strong>
 			</li>
 		</ul>
 		<ul>
 			for _, navBarItem := range navBarItems {
 				if navBarItem != currentTitle {
-					<li><a hx-target={ utils.ApiPath(navBarItem) }>{ utils.ToUpperFirst(navBarItem) }</a></li>
+					<li>
+						<a
+							hx-get={ utils.ApiPath(navBarItem) }
+							hx-target="main"
+						>
+							{ utils.ToUpperFirst(navBarItem) }
+						</a>
+					</li>
 				}
 			}
 		</ul>
 	</nav>
+}
+
+templ EventsToolbar() {
+	<nav>
+		<ul>
+			<li><button hx-target={ utils.ApiPath("event/create") } hx-target="#interactive">Create Event</button></li>
+			<li><button hx-target={ utils.ApiPath("event/remove") } hx-target="#interactive">Remove Event</button></li>
+		</ul>
+	</nav>
+}
+
+templ CreatedRsos(rsos []m.Rso) {
+	for _, rso := range rsos {
+		<article>
+			<header>{ rso.Title }</header>
+			{ rso.About }
+			<footer>
+				<form hx-get={ utils.ApiPath("rso/member") } hx-target="#authenticated">
+					<input type="hidden" name="ID" value={ rso.ID }/>
+					<button type="submit">Events</button>
+				</form>
+			</footer>
+		</article>
+	}
+}
+
+templ StackComponents(components ...templ.Component) {
+	for _, component := range components {
+		@component
+	}
 }

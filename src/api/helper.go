@@ -16,10 +16,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/schema"
 	"github.com/jackc/pgx/v5/pgxpool"
+	. "github.com/thatpix3l/collge_event_website/src/gen_sql"
 	"github.com/thatpix3l/collge_event_website/src/utils"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/go-jet/jet/v2/postgres"
 	s "github.com/go-jet/jet/v2/postgres"
+	t "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/table"
 )
 
 var tokenSecret = []byte(uuid.NewString())
@@ -158,7 +161,7 @@ var decoder = func() *schema.Decoder {
 	return d
 }()
 
-// Run Jet SQL statement; store in output pointer, if not nil.
+// Run Jet SQL statement; store in output pointer if not nil.
 func runQuery(hs HandlerState, stmt s.Statement, output any) error {
 
 	if output == nil {
@@ -234,6 +237,64 @@ var authenticatedUsers = AuthenticatedUsers{
 
 func tokenParser(t *jwt.Token) (interface{}, error) {
 	return tokenSecret, nil
+}
+
+func (hs HandlerState) GetClaims(claims *jwt.RegisteredClaims) error {
+
+	if claims == nil {
+		return errors.New("claim pointer is nil")
+	}
+
+	// Get signed auth token from cookies.
+	c, err := hs.Local.Request.Cookie("authenticationToken")
+	if err != nil {
+		return err
+	}
+
+	// Parse claims from signed token.
+	parsedClaims := jwt.RegisteredClaims{}
+	if _, err := jwt.ParseWithClaims(c.Value, &parsedClaims, tokenParser); err != nil {
+		return err
+	}
+
+	// Store into target
+	*claims = parsedClaims
+
+	return nil
+
+}
+
+func (hs HandlerState) GetUser(user *User) error {
+
+	if user == nil {
+		return errors.New("user pointer is nil")
+	}
+
+	// Get claims from handler
+	claims := jwt.RegisteredClaims{}
+	if err := hs.GetClaims(&claims); err != nil {
+		return err
+	}
+
+	// Query that gets users that match claim's Subject, which should contain a user ID
+	query := ReadUsers().WHERE(t.Baseuser.ID.EQ(postgres.String(claims.Subject)))
+
+	// Run query, store list of users.
+	users := []User{}
+	if err := runQuery(hs, query, &users); err != nil {
+		return err
+	}
+
+	// A length of 0 means no user with ID exists
+	if len(users) == 0 {
+		return errors.New("unable to find user with ID")
+	}
+
+	// Only get first user; database enforces primary key, so there should only ever be at most one matching user.
+	*user = users[0]
+
+	return nil
+
 }
 
 // Check if given authentication token is still valid.

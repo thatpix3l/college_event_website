@@ -1,16 +1,21 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/microcosm-cc/bluemonday"
 	. "github.com/thatpix3l/collge_event_website/src/gen_sql"
 	"github.com/thatpix3l/collge_event_website/src/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -29,14 +34,14 @@ var ReadHomepageErr = addHandlerFunc("/", "get", func(hs HandlerState) error {
 	// If authenticated and authorized, allow access to default homepage.
 	if err := hs.Authenticated(); err == nil {
 
-		// Get list of events.
-		events := []Event{}
-		if err := runQuery(hs, ReadEvents(), &events); err != nil {
+		// Get events home UI
+		createEvent, err := eventsHome(hs)
+		if err != nil {
 			return err
 		}
 
 		// Set as component to send.
-		comp = app.EventsHome(events)
+		comp = createEvent
 
 	} else {
 		log.Println(err)
@@ -125,14 +130,22 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	// Store cookie into Set-Cookie header for future usage.
 	http.SetCookie(hs.Local.ResponseWriter, &authCookie)
 
-	// Get list of events.
-	events := []Event{}
-	if err := runQuery(hs, ReadEvents(), &events); err != nil {
+	// Also copy cookie into Request, for retrieval of allowed events
+	hs.Local.Request.Header.Set("Cookie", authCookie.Name+"="+authCookie.Value)
+
+	// Get list events viewable by user
+	comp, err := eventsHome(hs)
+	if err != nil {
 		return err
 	}
 
-	// Respond to request with list of events
-	hs.Local.RespondHtml(app.EventsHome(events))
+	// Since this is the login page, make sure user also has the HTML boilerplate
+	comp = app.Home(comp)
+
+	// Respond to user list of events
+	if err := hs.Local.RespondHtml(comp); err != nil {
+		return err
+	}
 
 	return nil
 
@@ -157,11 +170,46 @@ var ReadSignupErr = addHandlerFunc(utils.ApiPath("signup"), "get", func(hs Handl
 	return nil
 })
 
-var createStudentParamKeys = []string{
-	"Email",
-	"PasswordRaw",
-	"NameFirst",
-	"NameLast",
+// UI for viewing and creating events
+func eventsHome(hs HandlerState) (templ.Component, error) {
+
+	// Get user from HandlerState
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return nil, err
+	}
+
+	// Make bool expression that checks if an event and student both are from the same university
+	sameUniversity := postgres.Bool(false)
+	if user.Student != nil && user.Student.UniversityID != nil {
+		sameUniversity = t.Baseevent.ID.EQ(postgres.String(*user.Student.UniversityID))
+	}
+
+	// If event is public and approved, allow
+	public := t.Baseevent.ID.EQ(t.Publicevent.ID).AND(t.Publicevent.Approved)
+
+	// If event is private and user is part of the same university, allow
+	private := t.Baseevent.ID.EQ(t.Privateevent.ID).AND(sameUniversity)
+
+	// If event is rso and user is part of the same university and part of the rso related to event, allow
+	sameRso := postgres.Bool(false)
+	if user.Rsomember != nil {
+		sameRso = t.Rsoevent.RsoID.EQ(postgres.String(user.Rsomember.RsoID))
+	}
+
+	rso := t.Baseevent.ID.EQ(t.Rsoevent.ID).AND(sameRso).AND(sameUniversity)
+
+	events := []Event{}
+	if err := runQuery(hs, ReadEvents().WHERE(public.OR(private).OR(rso)), &events); err != nil {
+		return nil, err
+	}
+
+	// Create UI that uses current state of list of events
+	return app.StackComponents(
+		app.NavBar("events"),
+		app.EventsToolbar(),
+		app.CreatedEvents(events),
+	), nil
 }
 
 // Create new student that's associated with a university.
@@ -180,19 +228,23 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 	}
 
 	// Create BaseUser
-	createBaseUser := CreateBaseUser().MODEL(baseUserParams).RETURNING(t.Baseuser.ID)
 	newBaseUsers := []m.Baseuser{}
-	if err := runQuery(hs, createBaseUser, &newBaseUsers); err != nil {
+	if err := runQuery(hs,
+		CreateBaseUser().MODEL(baseUserParams).RETURNING(t.Baseuser.ID),
+		&newBaseUsers); err != nil {
 		return err
 	}
 
-	// Prepare SQL statement for promoting the BaseUser into a Student.
-	createStudent := CreateStudent().VALUES(newBaseUsers[0].ID)
-
 	// Create Student
-	if err := runQuery(hs, createStudent, nil); err != nil {
+	if err := runQuery(hs, CreateStudent().VALUES(newBaseUsers[0].ID), nil); err != nil {
 		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
 		return err
+	}
+
+	if comp, err := eventsHome(hs); err != nil {
+		return err
+	} else {
+		hs.Local.RespondHtml(comp)
 	}
 
 	return nil
@@ -229,13 +281,6 @@ var ReadUniversitiesErr = addHandlerFunc(utils.ApiPath("university"), "get", fun
 
 })
 
-var createUniversityParamKeys = []string{
-	"Title",
-	"About",
-	"Latitude",
-	"Longitude",
-}
-
 // Create a new university record.
 var CreateUniversityErr = addHandlerFunc(utils.ApiPath("university"), "post", func(hs HandlerState) error {
 
@@ -255,11 +300,6 @@ var CreateUniversityErr = addHandlerFunc(utils.ApiPath("university"), "post", fu
 
 })
 
-type eventParams struct {
-	Event
-	EventType string
-}
-
 var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs HandlerState) error {
 
 	createUniversityParams := m.University{}
@@ -270,6 +310,35 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 	if err := runQuery(hs, CreateUniversity().MODEL(createUniversityParams), nil); err != nil {
 		return err
 	}
+
+	return nil
+})
+
+var ReadRsosErr = addHandlerFunc(utils.ApiPath("rsos"), "get", func(hs HandlerState) error {
+
+	rsos := []m.Rso{}
+	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
+		return err
+	}
+
+	if err := hs.Local.RespondHtml(app.StackComponents(
+		app.NavBar("rsos"),
+		app.CreatedRsos(rsos),
+	)); err != nil {
+		return err
+	}
+
+	return nil
+})
+
+var ReadEventsErr = addHandlerFunc(utils.ApiPath("events"), "get", func(hs HandlerState) error {
+
+	comp, err := eventsHome(hs)
+	if err != nil {
+		return err
+	}
+
+	hs.Local.RespondHtml(comp)
 
 	return nil
 })
@@ -289,27 +358,27 @@ var universityForms = []map[string][]string{
 	},
 }
 
+type ucfEvent struct {
+	Title        string
+	Description  string
+	Starts       string
+	ContactPhone string
+	ContactEmail string
+	Tags         []string
+}
+
+var p = bluemonday.UGCPolicy()
+
+func unescape(input string) string {
+	output := p.Sanitize(html.UnescapeString(input))
+	return output
+}
+
 // Helper route to populate database with default values.
 var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs HandlerState) error {
 
-	// Get list of existing universities
-	universities := []m.University{}
-	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
-		return err
-	}
-
-	// Check if already created universities
-	if len(universities) != 0 {
-		return errors.New("database already has universities, skipping")
-	}
-
+	universitiesParams := []m.University{}
 	for _, form := range universityForms {
-
-		fmt.Println()
-		fmt.Println()
-		fmt.Println()
-		fmt.Println()
-		fmt.Println()
 
 		// Copy current university Form into HandlerState's Form
 		hs.Local.Request.Form = url.Values(form)
@@ -320,14 +389,123 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 			return err
 		}
 
-		// Insert university using params struct as the values
-		if err := runQuery(hs, CreateUniversity().MODEL(params), nil); err != nil {
-			return err
-		}
+		// Store params for later insertion
+		universitiesParams = append(universitiesParams, params)
 
 	}
 
-	hs.Local.RespondHtml(app.StatusMessage(app.Success(), "initialized database with default values"))
+	// Insert and return copy of universities
+	fmt.Print("inserting default universities...")
+	universities := []m.University{}
+	if err := runQuery(hs,
+		CreateUniversity().MODELS(universitiesParams).RETURNING(t.University.AllColumns),
+		&universities); err != nil {
+		return err
+	}
+	fmt.Println("done")
+
+	// ID of the UCF university
+	ucfId := func() string {
+		for _, university := range universities {
+			if university.Title == "University of Central Florida" {
+				return university.ID
+			}
+		}
+		return ""
+	}()
+
+	// Get HTTP Response from UCF events feed
+	resp, err := http.Get("https://events.ucf.edu/feed.json")
+	if err != nil {
+		return err
+	}
+
+	// Read body of response into buffer
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal buffer into structured data
+	ucfEvents := []ucfEvent{}
+	if err := json.Unmarshal(buf, &ucfEvents); err != nil {
+		return err
+	}
+
+	// Convert UCF-created event into version the database can work with
+	eventsParams := []m.Baseevent{}
+	for _, ue := range ucfEvents {
+		newParams := m.Baseevent{
+			Title:        unescape(ue.Title),
+			About:        unescape(ue.Description),
+			ContactPhone: unescape(ue.ContactPhone),
+			ContactEmail: unescape(ue.ContactEmail),
+			UniversityID: ucfId,
+		}
+
+		eventsParams = append(eventsParams, newParams)
+
+	}
+
+	events := []m.Baseevent{} // inserted events
+
+	// Store database-compatible events
+	fmt.Print("inserting events...")
+	if err := runQuery(hs, CreateEvent().MODELS(eventsParams).RETURNING(t.Baseevent.AllColumns), &events); err != nil {
+		return err
+	}
+	fmt.Println("done")
+
+	// Make all events pulled from UCF public
+	publicEvents := []m.Publicevent{}
+	for _, event := range events {
+		publicEvents = append(publicEvents, m.Publicevent{
+			ID:       event.ID,
+			Approved: true,
+		})
+	}
+
+	// Insert public events
+	if err := runQuery(hs, CreatePublicEvent().MODELS(publicEvents), nil); err != nil {
+		return err
+	}
+
+	taggedEventsParams := []m.Taggedevent{} // list of event-tag tuples
+
+	fmt.Print("inserting tags...")
+	for i := range ucfEvents {
+		eventUcf := ucfEvents[i] // current UCF-created event
+		tagsParams := []m.Tag{}  // database-compatible list of tags for current event
+
+		// Make current event's tags database compatible
+		for _, tagName := range eventUcf.Tags {
+			tagsParams = append(tagsParams, m.Tag{Title: tagName})
+		}
+
+		// Store current event's tags into database
+		tags := []m.Tag{}
+		if err := runQuery(hs, CreateTag().MODELS(tagsParams).RETURNING(t.Tag.AllColumns), &tags); err != nil {
+			return err
+		}
+
+		eventDb := events[i] // current database-compatible event
+
+		// For each tag, make tuple with it and current event; add to list of tagged events
+		for _, tag := range tags {
+			taggedEventsParams = append(taggedEventsParams, m.Taggedevent{TagID: tag.ID, BaseEventID: eventDb.ID})
+		}
+
+	}
+	fmt.Println("done")
+
+	// Store list of event-tag tuples into database
+	fmt.Print("storing all event-tag tuples...")
+	if err := runQuery(hs, CreateTaggedEvent().MODELS(taggedEventsParams), nil); err != nil {
+		return err
+	}
+	fmt.Println("done")
+
+	hs.Local.RespondHtml(app.StatusMessage(app.Success(), "Initialized database with default values"))
 
 	return nil
 })
