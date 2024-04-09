@@ -360,3 +360,46 @@ func (hs HandlerState) FormGet(key string) (string, error) {
 
 	return val, nil
 }
+
+func (hs HandlerState) Authenticate(user User) error {
+
+	// Create claims.
+	now := jwt.NumericDate{Time: time.Now()}
+	expires := jwt.NumericDate{Time: now.Add(time.Hour * 24 * 3)}
+
+	claims := jwt.RegisteredClaims{
+		Issuer:    "college_event_website",
+		Subject:   user.Baseuser.ID,
+		Audience:  jwt.ClaimStrings{"user"},
+		ExpiresAt: &expires,
+		NotBefore: &now,
+		IssuedAt:  &now,
+		ID:        user.Baseuser.ID,
+	}
+
+	// Cache claims.
+	authenticatedUsers.Add(claims)
+
+	// Create signed token string.
+	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(tokenSecret)
+	if err != nil {
+		return err
+	}
+
+	// Create cookie storing signed token string.
+	authCookie := http.Cookie{
+		Name:     "authenticationToken",
+		Value:    ss,
+		Path:     "/",
+		Expires:  expires.Time,
+		HttpOnly: true,
+	}
+
+	// Store cookie into Set-Cookie header for future HTTP access
+	http.SetCookie(hs.Local.ResponseWriter, &authCookie)
+
+	// Also copy cookie into Request for later usage in the same handler
+	hs.Local.Request.Header.Set("Cookie", authCookie.Name+"="+authCookie.Value)
+
+	return nil
+}

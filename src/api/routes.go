@@ -9,12 +9,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/a-h/templ"
 	"github.com/go-jet/jet/v2/postgres"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/microcosm-cc/bluemonday"
 	. "github.com/thatpix3l/cew/src/gen_sql"
 	"github.com/thatpix3l/cew/src/utils"
@@ -86,7 +83,7 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	}
 
 	// Get first match
-	user := &usersWithEmail[0]
+	user := usersWithEmail[0]
 
 	// Check if provided password matches user.
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(passwordPlaintext)); err != nil {
@@ -94,46 +91,10 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 		return utils.ErrPrep(err, "password does not match user with provided email")
 	}
 
-	// Create claims.
-	now := jwt.NumericDate{Time: time.Now()}
-	expires := jwt.NumericDate{Time: now.Add(time.Hour * 24 * 3)}
+	// Authenticate
+	hs.Authenticate(user)
 
-	claims := jwt.RegisteredClaims{
-		Issuer:    "college_event_website",
-		Subject:   user.Baseuser.ID,
-		Audience:  jwt.ClaimStrings{"user"},
-		ExpiresAt: &expires,
-		NotBefore: &now,
-		IssuedAt:  &now,
-		ID:        uuid.NewString(),
-	}
-
-	// Cache claims.
-	authenticatedUsers.Add(claims)
-
-	// Create signed token string.
-	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(tokenSecret)
-	if err != nil {
-		hs.Local.RespondHtml(app.StatusMessage("danger", "unable to sign JWT token"), http.StatusInternalServerError)
-		return err
-	}
-
-	// Create cookie storing signed token string.
-	authCookie := http.Cookie{
-		Name:     "authenticationToken",
-		Value:    ss,
-		Path:     "/",
-		Expires:  expires.Time,
-		HttpOnly: true,
-	}
-
-	// Store cookie into Set-Cookie header for future usage.
-	http.SetCookie(hs.Local.ResponseWriter, &authCookie)
-
-	// Also copy cookie into Request, for retrieval of allowed events
-	hs.Local.Request.Header.Set("Cookie", authCookie.Name+"="+authCookie.Value)
-
-	// Get list events viewable by user
+	// Get list of events; customized based on user authorization
 	comp, err := eventsHome(hs)
 	if err != nil {
 		return err
@@ -227,17 +188,37 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 		return err
 	}
 
+	// User we're going to create
+	user := User{}
+
 	// Create BaseUser
-	newBaseUsers := []m.Baseuser{}
 	if err := runQuery(hs,
-		CreateBaseUser().MODEL(baseUserParams).RETURNING(t.Baseuser.ID),
-		&newBaseUsers); err != nil {
+		CreateBaseUser().MODEL(baseUserParams).RETURNING(t.Baseuser.AllColumns),
+		&user.Baseuser); err != nil {
 		return err
 	}
 
-	// Create Student
-	if err := runQuery(hs, CreateStudent().VALUES(newBaseUsers[0].ID), nil); err != nil {
+	// Create Student based off of base userr
+	user.Student = &m.Student{}
+	if err := runQuery(hs, CreateStudent().VALUES(user.Baseuser.ID).RETURNING(t.Student.AllColumns), user.Student); err != nil {
 		hs.Local.RespondHtml(app.StatusMessage("danger", err.Error()), http.StatusInternalServerError)
+		return err
+	}
+
+	// Authenticate and cache user
+	hs.Authenticate(user)
+
+	// Get list events viewable by user
+	comp, err := eventsHome(hs)
+	if err != nil {
+		return err
+	}
+
+	// Since this is the login page, make sure user also has the HTML boilerplate
+	comp = app.Home(comp)
+
+	// Respond to user list of events
+	if err := hs.Local.RespondHtml(comp); err != nil {
 		return err
 	}
 
