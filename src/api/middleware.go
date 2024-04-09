@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	app "github.com/thatpix3l/collge_event_website/src/gen_templ"
+	app "github.com/thatpix3l/cew/src/gen_templ"
 )
 
 // Internal helper func to build middlware using my custom handler signatures

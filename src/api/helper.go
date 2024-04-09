@@ -16,13 +16,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/schema"
 	"github.com/jackc/pgx/v5/pgxpool"
-	. "github.com/thatpix3l/collge_event_website/src/gen_sql"
-	"github.com/thatpix3l/collge_event_website/src/utils"
+	. "github.com/thatpix3l/cew/src/gen_sql"
+	"github.com/thatpix3l/cew/src/utils"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/go-jet/jet/v2/postgres"
 	s "github.com/go-jet/jet/v2/postgres"
-	t "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/table"
+	t "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/table"
 )
 
 var tokenSecret = []byte(uuid.NewString())

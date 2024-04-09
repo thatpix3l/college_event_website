@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/thatpix3l/collge_event_website/src/api"
+	"github.com/thatpix3l/cew/src/api"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

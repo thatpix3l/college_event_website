@@ -2,8 +2,8 @@ package gen_sql
 
 import (
 	s "github.com/go-jet/jet/v2/postgres"
-	m "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/model"
-	t "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/table"
+	m "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/model"
+	t "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/table"
 )
 
 func CreateTag() s.InsertStatement {

@@ -16,14 +16,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/microcosm-cc/bluemonday"
-	. "github.com/thatpix3l/collge_event_website/src/gen_sql"
-	"github.com/thatpix3l/collge_event_website/src/utils"
+	. "github.com/thatpix3l/cew/src/gen_sql"
+	"github.com/thatpix3l/cew/src/utils"
 	"golang.org/x/crypto/bcrypt"
 
-	app "github.com/thatpix3l/collge_event_website/src/gen_templ"
+	app "github.com/thatpix3l/cew/src/gen_templ"
 
-	m "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/model"
-	t "github.com/thatpix3l/collge_event_website/src/gen_sql/college_event_website/cew/table"
+	m "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/model"
+	t "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/table"
 )
 
 // Get homepage.

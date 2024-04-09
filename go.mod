@@ -1,4 +1,4 @@
-module github.com/thatpix3l/collge_event_website
+module github.com/thatpix3l/cew
 
 go 1.22.0
 
