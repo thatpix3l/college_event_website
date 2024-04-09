@@ -20,8 +20,7 @@ import (
 	"github.com/thatpix3l/cew/src/utils"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/go-jet/jet/v2/postgres"
-	s "github.com/go-jet/jet/v2/postgres"
+	pg "github.com/go-jet/jet/v2/postgres"
 	t "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/table"
 )
 
@@ -162,7 +161,7 @@ var decoder = func() *schema.Decoder {
 }()
 
 // Run Jet SQL statement; store in output pointer if not nil.
-func runQuery(hs HandlerState, stmt s.Statement, output any) error {
+func runQuery(hs HandlerState, stmt pg.Statement, output any) error {
 
 	if output == nil {
 		// If no destination, execute query and don't store result
@@ -277,7 +276,7 @@ func (hs HandlerState) GetUser(user *User) error {
 	}
 
 	// Query that gets users that match claim's Subject, which should contain a user ID
-	query := ReadUsers().WHERE(t.Baseuser.ID.EQ(postgres.String(claims.Subject)))
+	query := ReadUsers().WHERE(t.Baseuser.ID.EQ(pg.String(claims.Subject)))
 
 	// Run query, store list of users.
 	users := []User{}
