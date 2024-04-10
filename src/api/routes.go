@@ -32,13 +32,13 @@ var ReadHomepageErr = addHandlerFunc("/", "get", func(hs HandlerState) error {
 	if err := hs.Authenticated(); err == nil {
 
 		// Get events home UI
-		evnetListComp, err := eventListHome(hs)
+		eventListComp, err := eventListHome(hs)
 		if err != nil {
 			return err
 		}
 
 		// Set as component to send.
-		comp = evnetListComp
+		comp = eventListComp
 
 	}
 
