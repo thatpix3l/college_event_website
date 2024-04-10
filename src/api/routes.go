@@ -587,7 +587,7 @@ func eventInfo(hs HandlerState) error {
 	hs.Local.RespondHtml(app.StackComponents(
 		app.Event(event),
 		app.CreateComment(event),
-		app.CommentList(user, event.Comments),
+		app.CommentList(user, event),
 	))
 
 	return nil
@@ -637,7 +637,7 @@ var ReadEventsCommentCreated = addHandlerFunc(utils.ApiPath("event/{event_id}/co
 	return nil
 })
 
-var ReadEventsCommentRemoved = addHandlerFunc(utils.ApiPath("event/{event_id}/comment/{comment_id}"), "delete", func(hs HandlerState) error {
+var ReadEventsCommentDeleted = addHandlerFunc(utils.ApiPath("event/{event_id}/comment/{comment_id}"), "delete", func(hs HandlerState) error {
 
 	// Get comment ID
 	commentId := chi.URLParam(hs.Local.Request, "comment_id")
@@ -659,10 +659,12 @@ var ReadEventsCommentRemoved = addHandlerFunc(utils.ApiPath("event/{event_id}/co
 	// Query to remove chosen comment that was posted by student initiating request
 	query := t.Comment.DELETE().WHERE(t.Comment.ID.EQ(pg.String(commentId)).AND(t.Comment.StudentID.EQ(pg.String(user.Student.ID))))
 
+	// Attempt to remove comment
 	if err := runQuery(hs, query, nil); err != nil {
 		return err
 	}
 
+	// Respond to client with UI for viewing event info
 	if err := eventInfo(hs); err != nil {
 		return err
 	}

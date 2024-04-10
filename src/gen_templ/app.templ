@@ -90,13 +90,16 @@ templ EventList(events []gen_sql.Event) {
 	}
 }
 
-templ Comment(user gen_sql.User, comment m.Comment) {
+templ Comment(user gen_sql.User, event gen_sql.Event, comment m.Comment) {
 	<article id={ "comment-" + comment.ID }>
+		<i>{ comment.PostTimestamp.Format("January 01, 2006") }</i>
+		<br/>
+		<br/>
 		{ comment.Body }
 		<footer>
 			if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
 				<button>Edit</button>
-				<button>Delete</button>
+				<button hx-delete={ api("event/%s/comment/%s", event.Baseevent.ID, comment.ID) } hx-target="#interactive">Delete</button>
 			}
 		</footer>
 	</article>
@@ -118,10 +121,10 @@ templ CreateComment(event gen_sql.Event) {
 	</form>
 }
 
-templ CommentList(user gen_sql.User, comments []m.Comment) {
+templ CommentList(user gen_sql.User, event gen_sql.Event) {
 	<div id="#comment-list">
-		for _, comment := range comments {
-			@Comment(user, comment)
+		for _, comment := range event.Comments {
+			@Comment(user, event, comment)
 		}
 	</div>
 }
