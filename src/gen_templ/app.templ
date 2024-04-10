@@ -76,10 +76,14 @@ templ Event(event gen_sql.Event) {
 				id="event-info"
 				hx-get={ utils.ApiPath("event/info") }
 				hx-target="#interactive"
-				hx-trigger={ "click from:#event-" + event.Baseevent.ID + "  a" }
+				hx-trigger={ "click from:#event-" + event.Baseevent.ID + "-title" }
 			>
 				<input type="hidden" name="EventId" value={ event.Baseevent.ID }/>
-				<b><a>{ event.Baseevent.Title }</a></b>
+				<b>
+					<a id={ "event-" + event.Baseevent.ID + "-title" }>
+						@templ.Raw(event.Baseevent.Title)
+					</a>
+				</b>
 			</form>
 		</header>
 		@templ.Raw(event.Baseevent.About)
