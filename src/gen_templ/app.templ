@@ -57,6 +57,18 @@ func submitEventInfo() string {
 	return "document.querySelector(\"#event-info\")"
 }
 
+templ EventSearch() {
+	<div id="event-search">
+		<form
+			hx-get={ utils.ApiPath("event/search") }
+			hx-target="#interactive"
+			hx-trigger="input from:#event-search input"
+		>
+			<input type="text" name="SearchQuery" placeholder="Search Event" aria-label="Search Event"/>
+		</form>
+	</div>
+}
+
 templ Event(event gen_sql.Event) {
 	<article id={ "event-" + event.Baseevent.ID }>
 		<header>
@@ -67,7 +79,7 @@ templ Event(event gen_sql.Event) {
 				hx-trigger={ "click from:#event-" + event.Baseevent.ID + "  a" }
 			>
 				<input type="hidden" name="EventId" value={ event.Baseevent.ID }/>
-				<a>{ event.Baseevent.Title }</a>
+				<b><a>{ event.Baseevent.Title }</a></b>
 			</form>
 		</header>
 		@templ.Raw(event.Baseevent.About)

@@ -341,23 +341,37 @@ var noAuth = map[string][]string{
 	utils.ApiPath("init"):   {"post"},
 }
 
-// Get value from form
+// Get value from form; string cannot be empty
 func (hs HandlerState) FormGet(key string) (string, error) {
 
-	var val string
-
-	// Parse form, exit on error.
-	if err := hs.ParseForm(); err != nil {
+	val, err := hs.FormGetOpt(key)
+	if err != nil {
 		return "", err
 	}
 
-	// Get value, exit if empty.
-	val = hs.Local.Request.Form.Get(key)
 	if val == "" {
-		return val, errors.New("form with provided key has no value")
+		return "", errors.New("form with provided key has no value")
 	}
 
 	return val, nil
+
+}
+
+// Get value from form; string can be empty
+func (hs HandlerState) FormGetOpt(key string) (string, error) {
+
+	var val string
+
+	// Parse form, exit on error
+	if err := hs.ParseForm(); err != nil {
+		return val, err
+	}
+
+	// Get value, exit if empty
+	val = hs.Local.Request.Form.Get(key)
+
+	return val, nil
+
 }
 
 func (hs HandlerState) Authenticate(user User) error {

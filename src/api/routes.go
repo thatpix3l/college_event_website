@@ -194,6 +194,7 @@ func eventListHome(hs HandlerState) (templ.Component, error) {
 	return app.StackComponents(
 		app.NavBar("events"),
 		app.EventListToolbar(),
+		app.EventSearch(),
 		app.Interactive(app.EventList(events)),
 	), nil
 }
@@ -558,4 +559,48 @@ var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", func(hs H
 	))
 
 	return nil
+})
+
+var ReadEventsByTagErr = addHandlerFunc(utils.ApiPath("event/search"), "get", func(hs HandlerState) error {
+
+	// Get search query
+	searchQuery, err := hs.FormGetOpt("SearchQuery")
+	if err != nil {
+		return err
+	}
+
+	// Copy of query for getting events
+	query, err := eventListQuery(hs)
+	if err != nil {
+		return err
+	}
+
+	// If search query is not empty, limit query to only events that match search
+	if searchQuery != "" {
+		searchQuery = "%" + searchQuery + "%"
+
+		// Part of event title matches part of search
+		title := t.Baseevent.Title.LIKE(pg.String(searchQuery))
+
+		// Part of event body matches part of search
+		body := t.Baseevent.About.LIKE(pg.String(searchQuery))
+
+		// At least one of the event's tags matches part of search
+		tags := t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID).AND(t.Taggedevent.TagID.EQ(t.Tag.ID)).AND(t.Tag.Title.EQ(pg.String(searchQuery)))
+
+		// Modify query to only return events that have either the title, body, or tags match search query
+		query = query.WHERE(title.OR(body).OR(tags))
+	}
+
+	// Get list of events, based off of criteria
+	events := []Event{}
+	if err := runQuery(hs, query, &events); err != nil {
+		return err
+	}
+
+	// Respond to client
+	hs.Local.RespondHtml(app.EventList(events))
+
+	return nil
+
 })
