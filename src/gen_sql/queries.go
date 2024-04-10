@@ -24,7 +24,9 @@ func ReadEvents() s.SelectStatement {
 		t.Rsoevent.AllColumns,
 		t.Publicevent.AllColumns,
 		t.Privateevent.AllColumns,
-		t.Tag.Title,
+		t.Tag.AllColumns,
+		t.Comment.AllColumns,
+		t.Rating.AllColumns,
 	).FROM(
 		t.Baseevent.LEFT_JOIN(
 			t.Rsoevent, t.Baseevent.ID.EQ(t.Rsoevent.ID),
@@ -100,3 +102,7 @@ func ReadUniversities() s.SelectStatement {
 func CreateStudent() s.InsertStatement { return t.Student.INSERT(t.Student.ID) }
 
 func ReadRsos() s.SelectStatement { return t.Rso.SELECT(t.Rso.AllColumns).FROM(t.Rso) }
+
+func CreateComment() s.InsertStatement {
+	return t.Comment.INSERT(t.Comment.MutableColumns)
+}

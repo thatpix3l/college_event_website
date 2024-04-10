@@ -7,9 +7,14 @@
 
 package model
 
+import (
+	"time"
+)
+
 type Rating struct {
-	ID          string `sql:"primary_key"`
-	Stars       int32
-	StudentID   *string
-	BaseEventID string
+	ID            string `sql:"primary_key"`
+	Stars         int32
+	StudentID     *string
+	BaseEventID   string
+	PostTimestamp time.Time
 }

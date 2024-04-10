@@ -17,10 +17,11 @@ type ratingTable struct {
 	postgres.Table
 
 	// Columns
-	ID          postgres.ColumnString
-	Stars       postgres.ColumnInteger
-	StudentID   postgres.ColumnString
-	BaseEventID postgres.ColumnString
+	ID            postgres.ColumnString
+	Stars         postgres.ColumnInteger
+	StudentID     postgres.ColumnString
+	BaseEventID   postgres.ColumnString
+	PostTimestamp postgres.ColumnTimestamp
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -61,22 +62,24 @@ func newRatingTable(schemaName, tableName, alias string) *RatingTable {
 
 func newRatingTableImpl(schemaName, tableName, alias string) ratingTable {
 	var (
-		IDColumn          = postgres.StringColumn("id")
-		StarsColumn       = postgres.IntegerColumn("stars")
-		StudentIDColumn   = postgres.StringColumn("student_id")
-		BaseEventIDColumn = postgres.StringColumn("base_event_id")
-		allColumns        = postgres.ColumnList{IDColumn, StarsColumn, StudentIDColumn, BaseEventIDColumn}
-		mutableColumns    = postgres.ColumnList{StarsColumn, StudentIDColumn, BaseEventIDColumn}
+		IDColumn            = postgres.StringColumn("id")
+		StarsColumn         = postgres.IntegerColumn("stars")
+		StudentIDColumn     = postgres.StringColumn("student_id")
+		BaseEventIDColumn   = postgres.StringColumn("base_event_id")
+		PostTimestampColumn = postgres.TimestampColumn("post_timestamp")
+		allColumns          = postgres.ColumnList{IDColumn, StarsColumn, StudentIDColumn, BaseEventIDColumn, PostTimestampColumn}
+		mutableColumns      = postgres.ColumnList{StarsColumn, StudentIDColumn, BaseEventIDColumn, PostTimestampColumn}
 	)
 
 	return ratingTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:          IDColumn,
-		Stars:       StarsColumn,
-		StudentID:   StudentIDColumn,
-		BaseEventID: BaseEventIDColumn,
+		ID:            IDColumn,
+		Stars:         StarsColumn,
+		StudentID:     StudentIDColumn,
+		BaseEventID:   BaseEventIDColumn,
+		PostTimestamp: PostTimestampColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

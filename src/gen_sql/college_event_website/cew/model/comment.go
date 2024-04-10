@@ -7,9 +7,14 @@
 
 package model
 
+import (
+	"time"
+)
+
 type Comment struct {
-	ID          string `sql:"primary_key"`
-	Body        string
-	StudentID   *string
-	BaseEventID string
+	ID            string `sql:"primary_key"`
+	Body          string
+	StudentID     *string
+	BaseEventID   string
+	PostTimestamp time.Time
 }

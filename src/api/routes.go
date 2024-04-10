@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/a-h/templ"
 	pg "github.com/go-jet/jet/v2/postgres"
@@ -32,16 +32,14 @@ var ReadHomepageErr = addHandlerFunc("/", "get", func(hs HandlerState) error {
 	if err := hs.Authenticated(); err == nil {
 
 		// Get events home UI
-		createEvent, err := eventListHome(hs)
+		evnetListComp, err := eventListHome(hs)
 		if err != nil {
 			return err
 		}
 
 		// Set as component to send.
-		comp = createEvent
+		comp = evnetListComp
 
-	} else {
-		log.Println(err)
 	}
 
 	// Respond to client with fully rendered home.
@@ -99,9 +97,6 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	if err != nil {
 		return err
 	}
-
-	// Since this is the login page, make sure user also has the HTML boilerplate
-	comp = app.Home(comp)
 
 	// Respond to user list of events
 	if err := hs.Local.RespondHtml(comp); err != nil {
@@ -240,18 +235,9 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 		return err
 	}
 
-	// Since this is the login page, make sure user also has the HTML boilerplate
-	comp = app.Home(comp)
-
 	// Respond to user list of events
 	if err := hs.Local.RespondHtml(comp); err != nil {
 		return err
-	}
-
-	if comp, err := eventListHome(hs); err != nil {
-		return err
-	} else {
-		hs.Local.RespondHtml(comp)
 	}
 
 	return nil
@@ -517,7 +503,8 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 	return nil
 })
 
-var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", func(hs HandlerState) error {
+// Respond to client the UI for viewing an event
+func eventInfo(hs HandlerState) error {
 
 	// Get event ID
 	eventId, err := hs.FormGet("EventId")
@@ -531,7 +518,7 @@ var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", func(hs H
 		return err
 	}
 
-	query = query.WHERE(t.Baseevent.ID.EQ(pg.String(eventId)))
+	query = query.WHERE(t.Baseevent.ID.EQ(pg.String(eventId))).ORDER_BY(t.Comment.PostTimestamp.ASC())
 
 	// Run query and story output
 	events := []Event{}
@@ -547,6 +534,7 @@ var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", func(hs H
 	// Get first match; DB constraints ensure there is at most 1
 	event := events[0]
 
+	// Get user that's accessing page based upon their JWT credentials
 	user := User{}
 	if err := hs.GetUser(&user); err != nil {
 		return err
@@ -555,11 +543,15 @@ var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", func(hs H
 	// Respond to user with UI for viewing event
 	hs.Local.RespondHtml(app.StackComponents(
 		app.Event(event),
+		app.CreateComment(event),
 		app.CommentList(user, event.Comments),
 	))
 
 	return nil
-})
+
+}
+
+var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", eventInfo)
 
 var ReadEventsByTagErr = addHandlerFunc(utils.ApiPath("event/search"), "get", func(hs HandlerState) error {
 
@@ -603,4 +595,45 @@ var ReadEventsByTagErr = addHandlerFunc(utils.ApiPath("event/search"), "get", fu
 
 	return nil
 
+})
+
+var ReadEventsCommentInserted = addHandlerFunc(utils.ApiPath("event/comment"), "post", func(hs HandlerState) error {
+
+	// User that initiated request
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	// Body of comment to insert
+	commentBody, err := hs.FormGet("CommentBody")
+	if err != nil {
+		return err
+	}
+
+	// Event ID the comment is supposed to be for
+	eventId, err := hs.FormGet("EventId")
+	if err != nil {
+		return err
+	}
+
+	// Build comment params
+	comment := m.Comment{
+		Body:          commentBody,
+		StudentID:     &user.Baseuser.ID,
+		BaseEventID:   eventId,
+		PostTimestamp: time.Now(),
+	}
+
+	// Store comment
+	if err := runQuery(hs, CreateComment().MODEL(comment), nil); err != nil {
+		return err
+	}
+
+	// Respond to user with specific event they just commented on
+	if err := eventInfo(hs); err != nil {
+		return err
+	}
+
+	return nil
 })

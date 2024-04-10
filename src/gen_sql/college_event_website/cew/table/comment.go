@@ -17,10 +17,11 @@ type commentTable struct {
 	postgres.Table
 
 	// Columns
-	ID          postgres.ColumnString
-	Body        postgres.ColumnString
-	StudentID   postgres.ColumnString
-	BaseEventID postgres.ColumnString
+	ID            postgres.ColumnString
+	Body          postgres.ColumnString
+	StudentID     postgres.ColumnString
+	BaseEventID   postgres.ColumnString
+	PostTimestamp postgres.ColumnTimestamp
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -61,22 +62,24 @@ func newCommentTable(schemaName, tableName, alias string) *CommentTable {
 
 func newCommentTableImpl(schemaName, tableName, alias string) commentTable {
 	var (
-		IDColumn          = postgres.StringColumn("id")
-		BodyColumn        = postgres.StringColumn("body")
-		StudentIDColumn   = postgres.StringColumn("student_id")
-		BaseEventIDColumn = postgres.StringColumn("base_event_id")
-		allColumns        = postgres.ColumnList{IDColumn, BodyColumn, StudentIDColumn, BaseEventIDColumn}
-		mutableColumns    = postgres.ColumnList{BodyColumn, StudentIDColumn, BaseEventIDColumn}
+		IDColumn            = postgres.StringColumn("id")
+		BodyColumn          = postgres.StringColumn("body")
+		StudentIDColumn     = postgres.StringColumn("student_id")
+		BaseEventIDColumn   = postgres.StringColumn("base_event_id")
+		PostTimestampColumn = postgres.TimestampColumn("post_timestamp")
+		allColumns          = postgres.ColumnList{IDColumn, BodyColumn, StudentIDColumn, BaseEventIDColumn, PostTimestampColumn}
+		mutableColumns      = postgres.ColumnList{BodyColumn, StudentIDColumn, BaseEventIDColumn, PostTimestampColumn}
 	)
 
 	return commentTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:          IDColumn,
-		Body:        BodyColumn,
-		StudentID:   StudentIDColumn,
-		BaseEventID: BaseEventIDColumn,
+		ID:            IDColumn,
+		Body:          BodyColumn,
+		StudentID:     StudentIDColumn,
+		BaseEventID:   BaseEventIDColumn,
+		PostTimestamp: PostTimestampColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

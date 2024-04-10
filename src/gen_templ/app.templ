@@ -17,32 +17,21 @@ var Failure = status{"failure"}
 templ Home(comp templ.Component) {
 	<!DOCTYPE html>
 	<html>
-		<header>
+		<head>
 			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
 			<link
 				rel="stylesheet"
 				href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
 			/>
 			<style>
-	@import url('https://fonts.cdnfonts.com/css/open-sans');
+			@import url('https://fonts.cdnfonts.com/css/open-sans');
 
-	:root {
-		$amber-50: #fff8e1 !default;
-		$amber-900: #ff6f00 !default;
-		$green-50: #e8f5e9 !default;
-		$green-800: #1b5e20 !default;
-		$red-50: #ffebee !default;
-		$red-900: #b71c1c !default;
-	}
+			a:hover {
+				cursor: pointer;
+			}
 	
-	a:hover {
-		cursor: pointer;
-	}
-	
-}
-
-	</style>
-		</header>
+			</style>
+		</head>
 		<body>
 			<div class="container">
 				<main>
@@ -118,10 +107,29 @@ templ Comment(user gen_sql.User, comment m.Comment) {
 	</article>
 }
 
+templ CreateComment(event gen_sql.Event) {
+	<form
+		id="event-new-comment"
+		hx-post={ utils.ApiPath("event/comment") }
+		hx-target="#interactive"
+	>
+		<input type="hidden" name="EventId" value={ event.Baseevent.ID }/>
+		<textarea
+			id="event-new-comment-input"
+			name="CommentBody"
+			placeholder="New Comment"
+			rows="6"
+		></textarea>
+		<input type="submit" value="Submit"/>
+	</form>
+}
+
 templ CommentList(user gen_sql.User, comments []m.Comment) {
-	for _, comment := range comments {
-		@Comment(user, comment)
-	}
+	<div id="#comment-list">
+		for _, comment := range comments {
+			@Comment(user, comment)
+		}
+	</div>
 }
 
 templ Interactive(comp templ.Component) {
@@ -253,7 +261,7 @@ templ CreatedRsos(rsos []m.Rso) {
 			<footer>
 				<form hx-get={ utils.ApiPath("rso/member") } hx-target="#authenticated">
 					<input type="hidden" name="ID" value={ rso.ID }/>
-					<button type="submit">Events</button>
+					<input type="submit" value="Events"/>
 				</form>
 			</footer>
 		</article>

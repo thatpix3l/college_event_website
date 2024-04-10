@@ -74,7 +74,8 @@ CREATE TABLE cew.Comment (
     body VARCHAR NOT NULL,
     student_id VARCHAR REFERENCES cew.Student(id) ON UPDATE CASCADE ON DELETE
     SET NULL,
-        base_event_id VARCHAR NOT NULL REFERENCES cew.BaseEvent(id) ON UPDATE CASCADE ON DELETE CASCADE
+        base_event_id VARCHAR NOT NULL REFERENCES cew.BaseEvent(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        post_timestamp TIMESTAMP NOT NULL
 );
 CREATE TABLE cew.Rating (
     id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::VARCHAR,
@@ -84,6 +85,7 @@ CREATE TABLE cew.Rating (
     ),
     student_id VARCHAR REFERENCES cew.Student(id) ON UPDATE CASCADE ON DELETE
     SET NULL,
-        base_event_id VARCHAR NOT NULL REFERENCES cew.BaseEvent(id) ON UPDATE CASCADE ON DELETE CASCADE
+        base_event_id VARCHAR NOT NULL REFERENCES cew.BaseEvent(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        post_timestamp TIMESTAMP NOT NULL
 );
 -- END models
