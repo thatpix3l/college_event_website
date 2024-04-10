@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/go-chi/chi/v5"
 	pg "github.com/go-jet/jet/v2/postgres"
 	"github.com/microcosm-cc/bluemonday"
 	. "github.com/thatpix3l/cew/src/gen_sql"
@@ -188,7 +189,6 @@ func eventListHome(hs HandlerState) (templ.Component, error) {
 	// Create UI that uses current state of list of events
 	return app.StackComponents(
 		app.NavBar("events"),
-		app.EventListToolbar(),
 		app.EventSearch(),
 		app.Interactive(app.EventList(events)),
 	), nil
@@ -324,14 +324,57 @@ var ReadRsosErr = addHandlerFunc(utils.ApiPath("rsos"), "get", func(hs HandlerSt
 	return nil
 })
 
-var ReadEventsErr = addHandlerFunc(utils.ApiPath("events"), "get", func(hs HandlerState) error {
+var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs HandlerState) error {
 
-	comp, err := eventListHome(hs)
+	// Copy of query for getting events
+	query, err := eventListQuery(hs)
 	if err != nil {
 		return err
 	}
 
-	hs.Local.RespondHtml(comp)
+	// Get url queries
+	urlQueries := hs.Local.Request.URL.Query()
+
+	// Get search term for filtering; if empty, simply return list of ALL events
+	searchTerm := urlQueries.Get("search")
+	if searchTerm == "" {
+
+		events := []Event{}
+		if err := runQuery(hs, query, &events); err != nil {
+			return err
+		}
+
+		hs.Local.RespondHtml(app.EventList(events))
+		return nil
+	}
+
+	// Modify search term so it can match as a substring of any stored strings
+	searchTerm = "%" + searchTerm + "%"
+
+	// Part of event title matches search
+	title := t.Baseevent.Title.LIKE(pg.String(searchTerm))
+
+	// Part of event body matches search
+	body := t.Baseevent.About.LIKE(pg.String(searchTerm))
+
+	// At least one of the event's tags matches search
+	tags := t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID).AND(
+		t.Taggedevent.TagID.EQ(t.Tag.ID),
+	).AND(
+		t.Tag.Title.EQ(pg.String(searchTerm)),
+	)
+
+	// Modify query to only return events that have either the title, body, or tags matching search query
+	query = query.WHERE(title.OR(body).OR(tags))
+
+	// Get list of events, based off of criteria
+	events := []Event{}
+	if err := runQuery(hs, query, &events); err != nil {
+		return err
+	}
+
+	// Respond to client
+	hs.Local.RespondHtml(app.EventList(events))
 
 	return nil
 })
@@ -507,9 +550,9 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 func eventInfo(hs HandlerState) error {
 
 	// Get event ID
-	eventId, err := hs.FormGet("EventId")
-	if err != nil {
-		return err
+	eventId := chi.URLParam(hs.Local.Request, "event_id")
+	if eventId == "" {
+		return errors.New("get event info: did not provide event ID")
 	}
 
 	// Build query for getting list of events user can view
@@ -551,53 +594,9 @@ func eventInfo(hs HandlerState) error {
 
 }
 
-var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/info"), "get", eventInfo)
+var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/{event_id}"), "get", eventInfo)
 
-var ReadEventsByTagErr = addHandlerFunc(utils.ApiPath("event/search"), "get", func(hs HandlerState) error {
-
-	// Get search query
-	searchQuery, err := hs.FormGetOpt("SearchQuery")
-	if err != nil {
-		return err
-	}
-
-	// Copy of query for getting events
-	query, err := eventListQuery(hs)
-	if err != nil {
-		return err
-	}
-
-	// If search query is not empty, limit query to only events that match search
-	if searchQuery != "" {
-		searchQuery = "%" + searchQuery + "%"
-
-		// Part of event title matches part of search
-		title := t.Baseevent.Title.LIKE(pg.String(searchQuery))
-
-		// Part of event body matches part of search
-		body := t.Baseevent.About.LIKE(pg.String(searchQuery))
-
-		// At least one of the event's tags matches part of search
-		tags := t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID).AND(t.Taggedevent.TagID.EQ(t.Tag.ID)).AND(t.Tag.Title.EQ(pg.String(searchQuery)))
-
-		// Modify query to only return events that have either the title, body, or tags match search query
-		query = query.WHERE(title.OR(body).OR(tags))
-	}
-
-	// Get list of events, based off of criteria
-	events := []Event{}
-	if err := runQuery(hs, query, &events); err != nil {
-		return err
-	}
-
-	// Respond to client
-	hs.Local.RespondHtml(app.EventList(events))
-
-	return nil
-
-})
-
-var ReadEventsCommentInserted = addHandlerFunc(utils.ApiPath("event/comment"), "post", func(hs HandlerState) error {
+var ReadEventsCommentCreated = addHandlerFunc(utils.ApiPath("event/{event_id}/comment"), "post", func(hs HandlerState) error {
 
 	// User that initiated request
 	user := User{}
@@ -612,9 +611,9 @@ var ReadEventsCommentInserted = addHandlerFunc(utils.ApiPath("event/comment"), "
 	}
 
 	// Event ID the comment is supposed to be for
-	eventId, err := hs.FormGet("EventId")
-	if err != nil {
-		return err
+	eventId := chi.URLParam(hs.Local.Request, "event_id")
+	if eventId == "" {
+		return errors.New("create comment for event: did not provide event ID")
 	}
 
 	// Build comment params
@@ -631,6 +630,39 @@ var ReadEventsCommentInserted = addHandlerFunc(utils.ApiPath("event/comment"), "
 	}
 
 	// Respond to user with specific event they just commented on
+	if err := eventInfo(hs); err != nil {
+		return err
+	}
+
+	return nil
+})
+
+var ReadEventsCommentRemoved = addHandlerFunc(utils.ApiPath("event/{event_id}/comment/{comment_id}"), "delete", func(hs HandlerState) error {
+
+	// Get comment ID
+	commentId := chi.URLParam(hs.Local.Request, "comment_id")
+	if commentId == "" {
+		return errors.New("remove comment from event: did not provide comment ID")
+	}
+
+	// Get user
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	// Error if user who initiated request is not a student
+	if user.Student == nil {
+		return errors.New("remove comment from event: user is not a student")
+	}
+
+	// Query to remove chosen comment that was posted by student initiating request
+	query := t.Comment.DELETE().WHERE(t.Comment.ID.EQ(pg.String(commentId)).AND(t.Comment.StudentID.EQ(pg.String(user.Student.ID))))
+
+	if err := runQuery(hs, query, nil); err != nil {
+		return err
+	}
+
 	if err := eventInfo(hs); err != nil {
 		return err
 	}

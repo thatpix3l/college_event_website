@@ -3,6 +3,7 @@ package app
 import "github.com/thatpix3l/cew/src/utils"
 import "strings"
 import "github.com/thatpix3l/cew/src/gen_sql"
+import "fmt"
 
 import m "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/model"
 
@@ -13,6 +14,10 @@ type status struct {
 var Success = status{"success"}
 var Warning = status{"warning"}
 var Failure = status{"failure"}
+
+func api(format string, a ...any) string {
+	return utils.ApiPath(fmt.Sprintf(format, a...))
+}
 
 templ Home(comp templ.Component) {
 	<!DOCTYPE html>
@@ -47,33 +52,23 @@ func submitEventInfo() string {
 }
 
 templ EventSearch() {
-	<div id="event-search">
-		<form
-			hx-get={ utils.ApiPath("event/search") }
-			hx-target="#interactive"
-			hx-trigger="input from:#event-search input"
-		>
-			<input type="text" name="SearchQuery" placeholder="Search Event" aria-label="Search Event"/>
-		</form>
-	</div>
+	<form
+		hx-get={ api("event") }
+		hx-target="#interactive"
+		hx-trigger="input from:#event-search"
+	>
+		<input id="event-search" type="text" name="search" placeholder="Search Event" aria-label="Search Event"/>
+	</form>
 }
 
 templ Event(event gen_sql.Event) {
 	<article id={ "event-" + event.Baseevent.ID }>
 		<header>
-			<form
-				id="event-info"
-				hx-get={ utils.ApiPath("event/info") }
-				hx-target="#interactive"
-				hx-trigger={ "click from:#event-" + event.Baseevent.ID + "-title" }
-			>
-				<input type="hidden" name="EventId" value={ event.Baseevent.ID }/>
-				<b>
-					<a id={ "event-" + event.Baseevent.ID + "-title" }>
-						@templ.Raw(event.Baseevent.Title)
-					</a>
-				</b>
-			</form>
+			<b>
+				<a hx-get={ api("event/%s", event.Baseevent.ID) } hx-target="#interactive">
+					@templ.Raw(event.Baseevent.Title)
+				</a>
+			</b>
 		</header>
 		@templ.Raw(event.Baseevent.About)
 		if len(event.Tags) > 0 {
@@ -110,10 +105,9 @@ templ Comment(user gen_sql.User, comment m.Comment) {
 templ CreateComment(event gen_sql.Event) {
 	<form
 		id="event-new-comment"
-		hx-post={ utils.ApiPath("event/comment") }
+		hx-post={ api("event/%s/comment", event.Baseevent.ID) }
 		hx-target="#interactive"
 	>
-		<input type="hidden" name="EventId" value={ event.Baseevent.ID }/>
 		<textarea
 			id="event-new-comment-input"
 			name="CommentBody"
@@ -192,9 +186,9 @@ templ CredentialsForm(title string, postPath string, altPath string, altAbout st
 	<article>
 		<header>
 			<h1>{ title }</h1>
-			<a hx-target="main" hx-get={ utils.ApiPath(altPath) }>{ altAbout }</a>
+			<a hx-target="main" hx-get={ api(altPath) }>{ altAbout }</a>
 		</header>
-		<form hx-target="main" hx-post={ utils.ApiPath(postPath) } method="post">
+		<form hx-target="main" hx-post={ api(postPath) } method="post">
 			@FormInput("email", "Email", "Email")
 			@FormInput("password", "PasswordPlaintext", "Password")
 			for _, ef := range extraForms {
@@ -216,7 +210,7 @@ templ SignupForm(universities []m.University) {
 		UniversityInput(universities))
 }
 
-var navBarItems = []string{"events", "rsos", "account"}
+var navBarItems = []string{"event", "rsos", "account"}
 
 templ NavBar(currentTitle string) {
 	<nav id="navbar">
@@ -232,7 +226,7 @@ templ NavBar(currentTitle string) {
 				if navBarItem != currentTitle {
 					<li>
 						<a
-							hx-get={ utils.ApiPath(navBarItem) }
+							hx-get={ api(navBarItem) }
 							hx-target="main"
 						>
 							{ utils.ToUpperFirst(navBarItem) }
@@ -240,15 +234,6 @@ templ NavBar(currentTitle string) {
 					</li>
 				}
 			}
-		</ul>
-	</nav>
-}
-
-templ EventListToolbar() {
-	<nav>
-		<ul>
-			<li><button hx-target={ utils.ApiPath("event/create") } hx-target="#interactive">Create Event</button></li>
-			<li><button hx-target={ utils.ApiPath("event/remove") } hx-target="#interactive">Remove Event</button></li>
 		</ul>
 	</nav>
 }
