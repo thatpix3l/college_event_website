@@ -138,7 +138,7 @@ func eventListQuery(hs HandlerState) (pg.SelectStatement, error) {
 	// Make bool expression that checks if an event and student both are from the same university
 	sameUniversity := pg.Bool(false)
 	if user.Student != nil && user.Student.UniversityID != nil {
-		sameUniversity = t.Baseevent.ID.EQ(pg.String(*user.Student.UniversityID))
+		sameUniversity = t.Baseevent.UniversityID.EQ(pg.String(*user.Student.UniversityID))
 	}
 
 	// If event is public and approved, allow
