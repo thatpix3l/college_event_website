@@ -834,7 +834,7 @@ func SignupForm(universities []m.University) templ.Component {
 	})
 }
 
-var navBarItems = []string{"event", "rsos", "account"}
+var navBarItems = []string{"events", "rsos", "account"}
 
 func NavBar(currentTitle string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
@@ -872,7 +872,7 @@ func NavBar(currentTitle string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(api(navBarItem)))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(api("home/%s", navBarItem)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

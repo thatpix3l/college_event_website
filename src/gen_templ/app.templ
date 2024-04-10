@@ -210,7 +210,7 @@ templ SignupForm(universities []m.University) {
 		UniversityInput(universities))
 }
 
-var navBarItems = []string{"event", "rsos", "account"}
+var navBarItems = []string{"events", "rsos", "account"}
 
 templ NavBar(currentTitle string) {
 	<nav id="navbar">
@@ -226,7 +226,7 @@ templ NavBar(currentTitle string) {
 				if navBarItem != currentTitle {
 					<li>
 						<a
-							hx-get={ api(navBarItem) }
+							hx-get={ api("home/%s", navBarItem) }
 							hx-target="main"
 						>
 							{ utils.ToUpperFirst(navBarItem) }

@@ -307,7 +307,7 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 	return nil
 })
 
-var ReadRsosErr = addHandlerFunc(utils.ApiPath("rsos"), "get", func(hs HandlerState) error {
+var ReadRsosErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs HandlerState) error {
 
 	rsos := []m.Rso{}
 	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
@@ -666,6 +666,18 @@ var ReadEventsCommentRemoved = addHandlerFunc(utils.ApiPath("event/{event_id}/co
 	if err := eventInfo(hs); err != nil {
 		return err
 	}
+
+	return nil
+})
+
+var ReadEventListHome = addHandlerFunc(utils.ApiPath("home/events"), "get", func(hs HandlerState) error {
+
+	comp, err := eventListHome(hs)
+	if err != nil {
+		return err
+	}
+
+	hs.Local.RespondHtml(comp)
 
 	return nil
 })
