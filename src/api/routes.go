@@ -67,21 +67,21 @@ var CreateLoginErr = addHandlerFunc(utils.ApiPath("login"), "post", func(hs Hand
 	}
 
 	// Get list of existing users that have matching email
-	readUsersWithEmail := ReadUsers().WHERE(t.Baseuser.Email.EQ(pg.String(email)))
-	usersWithEmail := []User{}
-	runQuery(hs, readUsersWithEmail, &usersWithEmail)
+	query := ReadUsers().WHERE(t.Baseuser.Email.EQ(pg.String(email)))
+	users := []User{}
+	runQuery(hs, query, &users)
 	if err != nil {
 		return err
 	}
 
 	// Error if could not find user with email
-	if len(usersWithEmail) == 0 {
+	if len(users) == 0 {
 		hs.Local.RespondHtml(app.StatusMessage(app.Failure, "unable to find user with email/password combination"), http.StatusInternalServerError)
 		return errors.New("could not find user with matching email")
 	}
 
 	// Get first match
-	user := usersWithEmail[0]
+	user := users[0]
 
 	// Check if provided password matches user.
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(passwordPlaintext)); err != nil {
