@@ -128,10 +128,12 @@ func ReadRsos() pg.SelectStatement {
 	).INNER_JOIN(
 		FullUserTable(), rsoMemberBool,
 	).INNER_JOIN(
+		t.Taggedrso, t.Taggedrso.RsoID.EQ(t.Rso.ID),
+	).INNER_JOIN(
 		t.Tag, t.Tag.ID.EQ(t.Taggedrso.TagID).AND(t.Taggedrso.RsoID.EQ(t.Rso.ID)),
 	)
 
-	return t.Rso.SELECT(t.Rso.AllColumns, t.University.AllColumns, FullUserColumns()).FROM(table)
+	return t.Rso.SELECT(t.Rso.AllColumns, t.University.AllColumns, t.Tag.AllColumns, FullUserColumns()).FROM(table)
 }
 
 // Query that selects all RSOs and their associated university data, that have at least 5 members

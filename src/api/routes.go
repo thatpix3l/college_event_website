@@ -307,7 +307,7 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 	return nil
 })
 
-var ReadRsosErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs HandlerState) error {
+var ReadRsosHomeErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs HandlerState) error {
 
 	rsos := []Rso{}
 	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
@@ -699,16 +699,6 @@ var ReadEventListHome = addHandlerFunc(utils.ApiPath("home/events"), "get", func
 	}
 
 	hs.Local.RespondHtml(comp)
-
-	return nil
-})
-
-var ReadRsosHome = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs HandlerState) error {
-
-	rsos := []Rso{}
-	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
-		return err
-	}
 
 	return nil
 })
