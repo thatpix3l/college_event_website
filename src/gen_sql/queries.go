@@ -1,25 +1,25 @@
 package gen_sql
 
 import (
-	s "github.com/go-jet/jet/v2/postgres"
+	pg "github.com/go-jet/jet/v2/postgres"
 	m "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/model"
 	t "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/table"
 )
 
-func CreateTag() s.InsertStatement {
+func CreateTag() pg.InsertStatement {
 	return t.Tag.INSERT(t.Tag.MutableColumns)
 }
 
-func CreateTaggedEvent() s.InsertStatement {
+func CreateTaggedEvent() pg.InsertStatement {
 	return t.Taggedevent.INSERT(t.Taggedevent.AllColumns)
 }
 
-func CreateEvent() s.InsertStatement {
+func CreateEvent() pg.InsertStatement {
 	return t.Baseevent.INSERT(t.Baseevent.MutableColumns)
 }
 
-func ReadEvents() s.SelectStatement {
-	return s.SELECT(
+func ReadEvents() pg.SelectStatement {
+	return pg.SELECT(
 		t.Baseevent.AllColumns,
 		t.Rsoevent.AllColumns,
 		t.Publicevent.AllColumns,
@@ -48,7 +48,7 @@ func ReadEvents() s.SelectStatement {
 	)
 }
 
-func CreatePublicEvent() s.InsertStatement {
+func CreatePublicEvent() pg.InsertStatement {
 	return t.Publicevent.INSERT(t.Publicevent.AllColumns)
 }
 
@@ -63,23 +63,29 @@ type Event struct {
 	Comments []m.Comment
 }
 
-func CreateBaseUser() s.InsertStatement { return t.Baseuser.INSERT(t.Baseuser.MutableColumns) }
+func CreateBaseUser() pg.InsertStatement { return t.Baseuser.INSERT(t.Baseuser.MutableColumns) }
 
-func ReadUsers() s.SelectStatement {
-	return s.SELECT(
+func FullUserColumns() pg.ProjectionList {
+	return []pg.Projection{
 		t.Baseuser.AllColumns,
 		t.Student.AllColumns,
 		t.Superadmin.AllColumns,
 		t.Rsomember.AllColumns,
-	).FROM(
-		t.Baseuser.LEFT_JOIN(
-			t.Student, t.Baseuser.ID.EQ(t.Student.ID),
-		).LEFT_JOIN(
-			t.Superadmin, t.Baseuser.ID.EQ(t.Superadmin.ID),
-		).LEFT_JOIN(
-			t.Rsomember, t.Baseuser.ID.EQ(t.Rsomember.ID),
-		),
+	}
+}
+
+func FullUserTable() pg.ReadableTable {
+	return t.Baseuser.LEFT_JOIN(
+		t.Student, t.Baseuser.ID.EQ(t.Student.ID),
+	).LEFT_JOIN(
+		t.Superadmin, t.Baseuser.ID.EQ(t.Superadmin.ID),
+	).LEFT_JOIN(
+		t.Rsomember, t.Baseuser.ID.EQ(t.Rsomember.ID),
 	)
+}
+
+func ReadUsers() pg.SelectStatement {
+	return pg.SELECT(FullUserColumns()).FROM(FullUserTable())
 }
 
 type User struct {
@@ -89,20 +95,58 @@ type User struct {
 	*m.Rsomember
 }
 
-func CreateUniversity() s.InsertStatement { return t.University.INSERT(t.University.MutableColumns) }
+func CreateUniversity() pg.InsertStatement { return t.University.INSERT(t.University.MutableColumns) }
 
-func ReadUniversities() s.SelectStatement {
-	return s.SELECT(
+func ReadUniversities() pg.SelectStatement {
+	return pg.SELECT(
 		t.University.AllColumns,
 	).FROM(
 		t.University,
 	)
 }
 
-func CreateStudent() s.InsertStatement { return t.Student.INSERT(t.Student.ID) }
+func CreateStudent() pg.InsertStatement { return t.Student.INSERT(t.Student.ID) }
 
-func ReadRsos() s.SelectStatement { return t.Rso.SELECT(t.Rso.AllColumns).FROM(t.Rso) }
+type Rso struct {
+	m.Rso
+	m.University
+	Tags    []m.Tag
+	Members []User
+}
 
-func CreateComment() s.InsertStatement {
+// Query that selects all RSOs, their associated university data and members
+func ReadRsos() pg.SelectStatement {
+	rsoUniversityBool := t.Rso.UniversityID.EQ(t.University.ID)                           // Match university with RSO
+	rsoMemberBool := t.Rso.ID.EQ(t.Rsomember.RsoID).AND(t.Rsomember.ID.EQ(t.Baseuser.ID)) // Match Rso member to Rso
+
+	// Table that MUST include Rso,
+	// MUST include its associated university,
+	// MAY include rso members,
+	// MAY include tags
+	table := t.Rso.INNER_JOIN(
+		t.University, rsoUniversityBool,
+	).INNER_JOIN(
+		FullUserTable(), rsoMemberBool,
+	).INNER_JOIN(
+		t.Tag, t.Tag.ID.EQ(t.Taggedrso.TagID).AND(t.Taggedrso.RsoID.EQ(t.Rso.ID)),
+	)
+
+	return t.Rso.SELECT(t.Rso.AllColumns, t.University.AllColumns, FullUserColumns()).FROM(table)
+}
+
+// Query that selects all RSOs and their associated university data, that have at least 5 members
+func ReadRsosValid() pg.SelectStatement {
+
+	// Count of RSO members that are part of the same RSO
+	rsoMemberCount := pg.COUNT(t.Rsomember.RsoID.EQ(t.Rso.ID)).GT(pg.Int(4))
+
+	return ReadRsos().WHERE(rsoMemberCount)
+}
+
+func CreateComment() pg.InsertStatement {
 	return t.Comment.INSERT(t.Comment.MutableColumns)
+}
+
+func ReadComment() pg.SelectStatement {
+	return t.Comment.SELECT(t.Comment.AllColumns)
 }

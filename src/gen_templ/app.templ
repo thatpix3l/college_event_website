@@ -19,6 +19,9 @@ func api(format string, a ...any) string {
 	return utils.ApiPath(fmt.Sprintf(format, a...))
 }
 
+templ Nothing() {
+}
+
 templ Home(comp templ.Component) {
 	<!DOCTYPE html>
 	<html>
@@ -33,6 +36,10 @@ templ Home(comp templ.Component) {
 
 			a:hover {
 				cursor: pointer;
+			}
+			
+			.comment textarea {
+				rows: 5;
 			}
 	
 			</style>
@@ -90,22 +97,44 @@ templ EventList(events []gen_sql.Event) {
 	}
 }
 
-templ Comment(user gen_sql.User, event gen_sql.Event, comment m.Comment) {
-	<article id={ "comment-" + comment.ID }>
-		<i>{ comment.PostTimestamp.Format("January 02, 2006") }</i>
-		<br/>
-		<br/>
-		{ comment.Body }
-		if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
-			<footer>
-				<button>Edit</button>
-				<button hx-delete={ api("event/%s/comment/%s", event.Baseevent.ID, comment.ID) } hx-target="#interactive">Delete</button>
-			</footer>
-		}
+templ CommentContainer(commentId string, header templ.Component, body templ.Component, footer templ.Component) {
+	<article id={ "comment-" + commentId } class="comment">
+		<header>
+			@header
+		</header>
+		<div>
+			@body
+		</div>
+		<footer>
+			@footer
+		</footer>
 	</article>
 }
 
-templ CreateComment(event gen_sql.Event) {
+templ CommentPostDate(comment m.Comment) {
+	<small>{ comment.PostTimestamp.Format("January 02, 2006") }</small>
+}
+
+templ CommentUserGenerated(comment m.Comment) {
+	{ comment.Body }
+}
+
+templ CommentActions(comment m.Comment, user gen_sql.User) {
+	if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
+		<button
+			hx-get={ api("comment/%s/update", comment.ID) }
+			hx-target={ "#comment-" + comment.ID }
+			hx-swap="outerHTML"
+		>Edit</button>
+		<button hx-delete={ api("comment/%s", comment.ID) } hx-target="#interactive">Delete</button>
+	}
+}
+
+templ Comment(user gen_sql.User, comment m.Comment) {
+	@CommentContainer(comment.ID, CommentPostDate(comment), CommentUserGenerated(comment), CommentActions(comment, user))
+}
+
+templ CommentCreator(event gen_sql.Event) {
 	<form
 		hx-post={ api("event/%s/comment", event.Baseevent.ID) }
 		hx-target="#interactive"
@@ -113,18 +142,52 @@ templ CreateComment(event gen_sql.Event) {
 		<textarea
 			name="CommentBody"
 			placeholder="New Comment"
-			rows="6"
 		></textarea>
 		<input type="submit" value="Submit"/>
 	</form>
 }
 
-templ CommentList(user gen_sql.User, event gen_sql.Event) {
-	<div id="#comment-list">
-		for _, comment := range event.Comments {
-			@Comment(user, event, comment)
+templ CommentUpdaterBody(commentId string) {
+	<form
+		hx-patch={ api("comment/%s", commentId) }
+		hx-target={ "#comment-" + commentId }
+		hx-swap="outerHTML"
+		hx-trigger={ "click from:#update-comment-submit" + commentId }
+	>
+		<textarea name="CommentBody" placeholder="Updated Comment"></textarea>
+	</form>
+}
+
+templ CommentUpdaterCancel(commentId string) {
+	<button
+		hx-get={ api("comment/%s", commentId) }
+		hx-target={ "#comment-" + commentId }
+		hx-swap="outerHTML"
+	>
+		Cancel
+	</button>
+}
+
+templ CommentUpdaterSubmit(commentId string) {
+	<button id={ "update-comment-submit" + commentId }>
+		Submit
+	</button>
+}
+
+templ CommentUpdaterActions(commentId string) {
+	@NavToolbar(Toolbar(CommentUpdaterCancel(commentId), CommentUpdaterSubmit(commentId)))
+}
+
+templ CommentUpdater(commentId string) {
+	@CommentContainer(commentId, Nothing(), CommentUpdaterBody(commentId), CommentUpdaterActions(commentId))
+}
+
+templ CommentList(user gen_sql.User, comments []m.Comment) {
+	if len(comments) > 0 {
+		for _, comment := range comments {
+			@Comment(user, comment)
 		}
-	</div>
+	}
 }
 
 templ Interactive(comp templ.Component) {
@@ -175,12 +238,24 @@ templ FormInput(inputType string, id string, title string) {
 	<input type={ inputType } id={ id } name={ id } placeholder={ "Enter " + strings.ToLower(title) }/>
 }
 
-type CredFormProps struct {
-	Title            string            // Title of credentials form
-	PostPath         string            // API path to post form data
-	AlternativePath  string            // Path to alternative form
-	AlternativeAbout string            // Short "about" for alternative form
-	ExtraForms       []templ.Component // List of extra forms
+templ Toolbar(comps ...templ.Component) {
+	if len(comps) > 0 {
+		<ul>
+			for _, comp := range comps {
+				<li>
+					@comp
+				</li>
+			}
+		</ul>
+	}
+}
+
+templ NavToolbar(toolbars ...templ.Component) {
+	<nav>
+		for _, toolbar := range toolbars {
+			@toolbar
+		}
+	</nav>
 }
 
 templ CredentialsForm(title string, postPath string, altPath string, altAbout string, extraForms ...templ.Component) {
@@ -241,18 +316,21 @@ templ NavBar(currentTitle string) {
 	</nav>
 }
 
-templ CreatedRsos(rsos []m.Rso) {
-	for _, rso := range rsos {
-		<article>
-			<header>{ rso.Title }</header>
-			{ rso.About }
-			<footer>
-				<form hx-get={ utils.ApiPath("rso/member") } hx-target="#authenticated">
-					<input type="hidden" name="ID" value={ rso.ID }/>
-					<input type="submit" value="Events"/>
-				</form>
-			</footer>
-		</article>
+templ Rso(rso gen_sql.Rso) {
+	<article id={ "rso-" + rso.Rso.ID }>
+		<header><b><a hx-get={ api("rso/" + rso.Rso.ID) } hx-target="#interactive">{ rso.Rso.Title }</a></b></header>
+		{ rso.Rso.About }
+		<footer></footer>
+	</article>
+}
+
+templ RsoList(rsos []gen_sql.Rso) {
+	if len(rsos) > 0 {
+		<div id="list-rso">
+			for _, rso := range rsos {
+				@Rso(rso)
+			}
+		</div>
 	}
 }
 

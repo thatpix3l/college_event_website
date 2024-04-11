@@ -309,14 +309,14 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 
 var ReadRsosErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs HandlerState) error {
 
-	rsos := []m.Rso{}
+	rsos := []Rso{}
 	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
 		return err
 	}
 
 	if err := hs.Local.RespondHtml(app.StackComponents(
 		app.NavBar("rsos"),
-		app.CreatedRsos(rsos),
+		app.RsoList(rsos),
 	)); err != nil {
 		return err
 	}
@@ -547,10 +547,9 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 })
 
 // Respond to client the UI for viewing an event
-func eventInfo(hs HandlerState) error {
+func eventInfo(hs HandlerState, eventId string) error {
 
 	// Get event ID
-	eventId := chi.URLParam(hs.Local.Request, "event_id")
 	if eventId == "" {
 		return errors.New("get event info: did not provide event ID")
 	}
@@ -586,15 +585,23 @@ func eventInfo(hs HandlerState) error {
 	// Respond to user with UI for viewing event
 	hs.Local.RespondHtml(app.StackComponents(
 		app.Event(event),
-		app.CreateComment(event),
-		app.CommentList(user, event),
+		app.CommentCreator(event),
+		app.CommentList(user, event.Comments),
 	))
 
 	return nil
 
 }
 
-var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/{event_id}"), "get", eventInfo)
+var ReadEventInfo = addHandlerFunc(utils.ApiPath("event/{event_id}"), "get", func(hs HandlerState) error {
+
+	eventId := chi.URLParam(hs.Local.Request, "event_id")
+	if err := eventInfo(hs, eventId); err != nil {
+		return err
+	}
+
+	return nil
+})
 
 var ReadEventsCommentCreated = addHandlerFunc(utils.ApiPath("event/{event_id}/comment"), "post", func(hs HandlerState) error {
 
@@ -630,20 +637,14 @@ var ReadEventsCommentCreated = addHandlerFunc(utils.ApiPath("event/{event_id}/co
 	}
 
 	// Respond to user with specific event they just commented on
-	if err := eventInfo(hs); err != nil {
+	if err := eventInfo(hs, eventId); err != nil {
 		return err
 	}
 
 	return nil
 })
 
-var ReadEventsCommentDeleted = addHandlerFunc(utils.ApiPath("event/{event_id}/comment/{comment_id}"), "delete", func(hs HandlerState) error {
-
-	// Get comment ID
-	commentId := chi.URLParam(hs.Local.Request, "comment_id")
-	if commentId == "" {
-		return errors.New("remove comment from event: did not provide comment ID")
-	}
+var DeleteComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "delete", func(hs HandlerState) error {
 
 	// Get user
 	user := User{}
@@ -656,6 +657,24 @@ var ReadEventsCommentDeleted = addHandlerFunc(utils.ApiPath("event/{event_id}/co
 		return errors.New("remove comment from event: user is not a student")
 	}
 
+	// Get comment ID
+	commentId := chi.URLParam(hs.Local.Request, "comment_id")
+	if commentId == "" {
+		return errors.New("delete comment: did not provide comment ID")
+	}
+
+	// Cache events associated with comment ID; obviously, should only be one
+	events := []Event{}
+	if err := runQuery(hs, ReadEvents().WHERE(t.Baseevent.ID.EQ(t.Comment.BaseEventID)), &events); err != nil {
+		return err
+	}
+
+	if len(events) == 0 {
+		return errors.New("delete comment: could not find event comment is associated with")
+	}
+
+	eventId := events[0].Baseevent.ID // Specifically, cache the event's ID
+
 	// Query to remove chosen comment that was posted by student initiating request
 	query := t.Comment.DELETE().WHERE(t.Comment.ID.EQ(pg.String(commentId)).AND(t.Comment.StudentID.EQ(pg.String(user.Student.ID))))
 
@@ -664,8 +683,8 @@ var ReadEventsCommentDeleted = addHandlerFunc(utils.ApiPath("event/{event_id}/co
 		return err
 	}
 
-	// Respond to client with UI for viewing event info
-	if err := eventInfo(hs); err != nil {
+	// Respond to client with UI for viewing event that the comment was deleted from
+	if err := eventInfo(hs, eventId); err != nil {
 		return err
 	}
 
@@ -680,6 +699,105 @@ var ReadEventListHome = addHandlerFunc(utils.ApiPath("home/events"), "get", func
 	}
 
 	hs.Local.RespondHtml(comp)
+
+	return nil
+})
+
+var ReadRsosHome = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs HandlerState) error {
+
+	rsos := []Rso{}
+	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
+		return err
+	}
+
+	return nil
+})
+
+var ReadCommentErr = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "get", func(hs HandlerState) error {
+
+	// Get comment ID
+	commentId := chi.URLParam(hs.Local.Request, "comment_id")
+	if commentId == "" {
+		return errors.New("get comment: comment ID is empty")
+	}
+
+	// Build query to select all comments with matching ID; obviously, at most one
+	query := t.Comment.SELECT(t.Comment.AllColumns).WHERE(t.Comment.ID.EQ(pg.String(commentId)))
+
+	// Run query and store comments
+	comments := []m.Comment{}
+	if err := runQuery(hs, query, &comments); err != nil {
+		return err
+	}
+
+	// Error if could not find comment
+	if len(comments) == 0 {
+		return errors.New("get comment: comment with ID does not exist")
+	}
+
+	// Get user
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	// Respond to given user the comment
+	hs.Local.RespondHtml(app.Comment(user, comments[0]))
+
+	return nil
+
+})
+
+var ReadUpdateCommentErr = addHandlerFunc(utils.ApiPath("comment/{comment_id}/update"), "get", func(hs HandlerState) error {
+
+	commentId := chi.URLParam(hs.Local.Request, "comment_id")
+	if commentId == "" {
+		return errors.New("get comment updater: did not provide comment ID")
+	}
+
+	hs.Local.RespondHtml(app.CommentUpdater(commentId))
+
+	return nil
+
+})
+
+var UpdateComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "patch", func(hs HandlerState) error {
+
+	commentId := chi.URLParam(hs.Local.Request, "comment_id")
+	if commentId == "" {
+		return errors.New("update comment: did not provide comment ID")
+	}
+
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	if user.Student == nil {
+		return errors.New("update comment: user is not a student")
+	}
+
+	commentBody, err := hs.FormGet("CommentBody")
+	if err != nil {
+		return err
+	}
+
+	query := t.Comment.UPDATE(t.Comment.Body).SET(commentBody).WHERE(
+		t.Comment.ID.EQ(pg.String(commentId)).AND(
+			t.Comment.StudentID.EQ(pg.String(user.Student.ID)),
+		),
+	).RETURNING(t.Comment.AllColumns)
+
+	comments := []m.Comment{}
+	if err := runQuery(hs, query, &comments); err != nil {
+		return err
+	}
+
+	if len(comments) == 0 {
+		return errors.New("update comment: comment with ID does not exist")
+	}
+
+	hs.Local.RespondHtml(app.Comment(user, comments[0]))
 
 	return nil
 })
