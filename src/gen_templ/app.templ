@@ -92,7 +92,7 @@ templ EventList(events []gen_sql.Event) {
 
 templ Comment(user gen_sql.User, event gen_sql.Event, comment m.Comment) {
 	<article id={ "comment-" + comment.ID }>
-		<i>{ comment.PostTimestamp.Format("January 01, 2006") }</i>
+		<i>{ comment.PostTimestamp.Format("January 02, 2006") }</i>
 		<br/>
 		<br/>
 		{ comment.Body }

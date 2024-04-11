@@ -245,7 +245,7 @@ func Comment(user gen_sql.User, event gen_sql.Event, comment m.Comment) templ.Co
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(comment.PostTimestamp.Format("January 01, 2006"))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(comment.PostTimestamp.Format("January 02, 2006"))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app.templ`, Line: 94, Col: 55}
 		}
