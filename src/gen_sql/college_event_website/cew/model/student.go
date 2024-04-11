@@ -9,5 +9,5 @@ package model
 
 type Student struct {
 	ID           string `sql:"primary_key"`
-	UniversityID *string
+	UniversityID string
 }

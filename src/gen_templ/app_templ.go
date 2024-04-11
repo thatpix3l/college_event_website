@@ -411,7 +411,7 @@ func CommentActions(comment m.Comment, user gen_sql.User) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
+		if user.StudentFull != nil && comment.StudentID != nil && user.StudentFull.Student.ID == *comment.StudentID {
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1475,15 +1475,15 @@ func UserInfo(user gen_sql.User) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if user.UniversityID != nil {
+		if user.StudentFull != nil {
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("University: ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var56 string
-			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(*user.UniversityID)
+			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(user.StudentFull.University.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app.templ`, Line: 342, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app.templ`, Line: 342, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
@@ -1550,7 +1550,7 @@ func RsoLeave(rso gen_sql.Rso, user gen_sql.User) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(api("rso/%s/member/%s", rso.Rso.ID, user.Baseuser.ID)))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(api("rso/%s/member", rso.Rso.ID)))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

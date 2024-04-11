@@ -125,7 +125,7 @@ templ CommentUserGenerated(comment m.Comment) {
 }
 
 templ CommentActions(comment m.Comment, user gen_sql.User) {
-	if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
+	if user.StudentFull != nil && comment.StudentID != nil && user.StudentFull.Student.ID == *comment.StudentID {
 		<button
 			hx-get={ api("comment/%s/update", comment.ID) }
 			hx-target={ "#comment-" + comment.ID }
@@ -339,8 +339,8 @@ templ UserInfo(user gen_sql.User) {
 	<article>
 		<header>{ user.NameFirst } { user.NameLast }</header>
 		<div>
-			if user.UniversityID != nil {
-				University: { *user.UniversityID }
+			if user.StudentFull != nil {
+				University: { user.StudentFull.University.Title }
 			}
 		</div>
 		<footer></footer>
@@ -352,7 +352,7 @@ templ RsoJoin(rso gen_sql.Rso) {
 }
 
 templ RsoLeave(rso gen_sql.Rso, user gen_sql.User) {
-	<button hx-delete={ api("rso/%s/member/%s", rso.Rso.ID, user.Baseuser.ID) } hx-target="#interactive">Leave</button>
+	<button hx-delete={ api("rso/%s/member", rso.Rso.ID) } hx-target="#interactive">Leave</button>
 }
 
 templ RsoJoinLeave(rso gen_sql.Rso, user gen_sql.User) {

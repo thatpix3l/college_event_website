@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -137,10 +138,7 @@ func eventListQuery(hs HandlerState) (pg.SelectStatement, error) {
 	}
 
 	// Make bool expression that checks if an event and student both are from the same university
-	sameUniversity := pg.Bool(false)
-	if user.Student != nil && user.Student.UniversityID != nil {
-		sameUniversity = t.Baseevent.UniversityID.EQ(pg.String(*user.Student.UniversityID))
-	}
+	sameUniversity := t.Baseevent.UniversityID.EQ(pg.String(user.Student.UniversityID))
 
 	// If event is public and approved, allow
 	public := t.Baseevent.ID.EQ(t.Publicevent.ID).AND(t.Publicevent.Approved)
@@ -206,19 +204,42 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 	}
 
 	// User we're going to create
-	user := User{}
+	baseUser := m.Baseuser{}
 
 	// Create BaseUser
 	if err := runQuery(hs,
 		CreateBaseUser().MODEL(baseUserParams).RETURNING(t.Baseuser.AllColumns),
-		&user.Baseuser); err != nil {
+		&baseUser); err != nil {
 		return err
 	}
 
-	// Create Student based off of base userr
-	user.Student = &m.Student{}
-	if err := runQuery(hs, CreateStudent().VALUES(user.Baseuser.ID).RETURNING(t.Student.AllColumns), user.Student); err != nil {
+	// Pull university ID user wants to be a part of
+	universityId, err := hs.FormGet("UniversityID")
+	if err != nil {
+		return err
+	}
+
+	// Create student based off of base user
+	student := m.Student{
+		ID:           baseUser.ID,
+		UniversityID: universityId,
+	}
+
+	log.Println(CreateStudent().MODEL(student).DebugSql())
+
+	// Insert student into database
+	if err := runQuery(hs, CreateStudent().MODEL(student), nil); err != nil {
 		hs.Local.RespondHtml(app.StatusMessage(app.Failure, err.Error()), http.StatusInternalServerError)
+		return err
+	}
+
+	// Retrieve fully configured student from database
+	user := User{}
+	readNewStudentQuery := ReadUsers().WHERE(t.Baseuser.ID.EQ(pg.String(baseUser.ID)))
+
+	log.Println(readNewStudentQuery.DebugSql())
+
+	if err := runQuery(hs, readNewStudentQuery, &user); err != nil {
 		return err
 	}
 
@@ -646,7 +667,7 @@ var DeleteComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "delet
 	}
 
 	// Error if user who initiated request is not a student
-	if user.Student == nil {
+	if user.StudentFull == nil {
 		return errors.New("remove comment from event: user is not a student")
 	}
 
@@ -756,7 +777,7 @@ var UpdateComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "patch
 		return err
 	}
 
-	if user.Student == nil {
+	if user.StudentFull == nil {
 		return errors.New("update comment: user is not a student")
 	}
 
@@ -861,7 +882,7 @@ var CreateRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "p
 	}
 
 	// Error if user is not a student
-	if user.Student == nil {
+	if user.StudentFull == nil {
 		return errors.New("create rso member: user is not a student")
 	}
 
@@ -882,15 +903,85 @@ var CreateRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "p
 		return err
 	}
 
-	// Re-read specific RSO for whom we just created a member for
+	// Retrievespecific RSO for whom we just created a member for
 	rso := []Rso{}
 	readRsosQuery := ReadRsos().WHERE(t.Rso.ID.EQ(pg.String(rsoId)))
 	if err := runQuery(hs, readRsosQuery, &rso); err != nil {
 		return err
 	}
 
+	// Error if could not retrieve specific Rso
+	if len(rso) == 0 {
+		return errors.New("create rso member: cannot retrieve specified rso for viewing")
+	}
+
+	// Get user from database after addition of their Rso membership
+	userAfterDeletion := User{}
+	if err := hs.GetUser(&userAfterDeletion); err != nil {
+		return err
+	}
+
 	// Respond to client with UI for viewing the info of the RSO
-	hs.Local.RespondHtml(app.RsoInfo(rso[0], user))
+	hs.Local.RespondHtml(app.RsoInfo(rso[0], userAfterDeletion))
+
+	return nil
+})
+
+var DeleteRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "delete", func(hs HandlerState) error {
+
+	// Get Rso id
+	rsoId := chi.URLParam(hs.Local.Request, "rso_id")
+	if rsoId == "" {
+		return errors.New("delete rso member: did not provide rso ID")
+	}
+
+	// Get user initiating request
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	// Error if request initiator is not a member of any Rso
+	if user.Rsomember == nil {
+		return errors.New("delete rso member: user initiating request is not a member of any RSO")
+	}
+
+	// Error if request initiator is not a member of Rso that has provided ID
+	if user.Rsomember.RsoID != rsoId {
+		return errors.New("delete rso member: user initiating request is not a member of provided RSO")
+	}
+
+	deleteRsoMemberQuery := t.Rsomember.DELETE().WHERE(
+		t.Rsomember.RsoID.EQ(pg.String(user.Rsomember.RsoID)).AND(
+			t.Rsomember.ID.EQ(pg.String(user.Rsomember.ID)),
+		),
+	)
+
+	// Delete request initiator from list of Rso members for provided Rso
+	if err := runQuery(hs, deleteRsoMemberQuery, nil); err != nil {
+		return err
+	}
+
+	// Retrieve details for Rso after user removal
+	rsos := []Rso{}
+	readRsoQuery := ReadRsos().WHERE(t.Rso.ID.EQ(pg.String(user.Rsomember.RsoID)))
+	if err := runQuery(hs, readRsoQuery, &rsos); err != nil {
+		return err
+	}
+
+	// Error if could not retrieve specific Rso
+	if len(rsos) == 0 {
+		return errors.New("delete rso member: cannot retrieve specified rso for viewing")
+	}
+
+	// Get user from database after removal of their rso membership
+	userAfterDeletion := User{}
+	if err := hs.GetUser(&userAfterDeletion); err != nil {
+		return err
+	}
+
+	// Respond to clinet the UI for viewing details about an Rso
+	hs.Local.RespondHtml(app.RsoInfo(rsos[0], userAfterDeletion))
 
 	return nil
 })

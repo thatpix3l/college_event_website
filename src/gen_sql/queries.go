@@ -63,6 +63,10 @@ type Event struct {
 	Comments []m.Comment
 }
 
+func StudentUniversity() *t.UniversityTable {
+	return t.University.AS("StudentUniversity")
+}
+
 func CreateBaseUser() pg.InsertStatement { return t.Baseuser.INSERT(t.Baseuser.MutableColumns) }
 
 func FullUserColumns() pg.ProjectionList {
@@ -71,6 +75,7 @@ func FullUserColumns() pg.ProjectionList {
 		t.Student.AllColumns,
 		t.Superadmin.AllColumns,
 		t.Rsomember.AllColumns,
+		StudentUniversity().AllColumns,
 	}
 }
 
@@ -81,6 +86,8 @@ func FullUserTable() pg.ReadableTable {
 		t.Superadmin, t.Baseuser.ID.EQ(t.Superadmin.ID),
 	).LEFT_JOIN(
 		t.Rsomember, t.Baseuser.ID.EQ(t.Rsomember.ID),
+	).LEFT_JOIN(
+		StudentUniversity(), StudentUniversity().ID.EQ(t.Student.UniversityID),
 	)
 }
 
@@ -88,9 +95,14 @@ func ReadUsers() pg.SelectStatement {
 	return pg.SELECT(FullUserColumns()).FROM(FullUserTable())
 }
 
+type StudentFull struct {
+	m.Student
+	m.University `alias:"StudentUniversity.*"`
+}
+
 type User struct {
 	m.Baseuser
-	*m.Student
+	*StudentFull
 	*m.Superadmin
 	*m.Rsomember
 }
@@ -105,18 +117,24 @@ func ReadUniversities() pg.SelectStatement {
 	)
 }
 
-func CreateStudent() pg.InsertStatement { return t.Student.INSERT(t.Student.ID) }
+func CreateStudent() pg.InsertStatement {
+	return t.Student.INSERT(t.Student.AllColumns)
+}
+
+func RsoUniversity() t.UniversityTable {
+	return *t.University.AS("RsoUniversity")
+}
 
 type Rso struct {
 	m.Rso
-	m.University
-	Tags    []m.Tag
-	Members []User
+	m.University `alias:"RsoUniversity.*"`
+	Tags         []m.Tag
+	Members      []User
 }
 
 // Query that selects all RSOs, their associated university data and members
 func ReadRsos() pg.SelectStatement {
-	rsoUniversityBool := t.Rso.UniversityID.EQ(t.University.ID)                           // Match university with RSO
+	rsoUniversityBool := t.Rso.UniversityID.EQ(RsoUniversity().ID)                        // Match university with RSO
 	rsoMemberBool := t.Rso.ID.EQ(t.Rsomember.RsoID).AND(t.Rsomember.ID.EQ(t.Baseuser.ID)) // Match Rso member to Rso
 
 	// Table that MUST include Rso,
@@ -124,7 +142,7 @@ func ReadRsos() pg.SelectStatement {
 	// MAY include rso members,
 	// MAY include tags
 	table := t.Rso.INNER_JOIN(
-		t.University, rsoUniversityBool,
+		RsoUniversity(), rsoUniversityBool,
 	).LEFT_JOIN(
 		FullUserTable(), rsoMemberBool,
 	).LEFT_JOIN(
@@ -133,7 +151,7 @@ func ReadRsos() pg.SelectStatement {
 		t.Tag, t.Tag.ID.EQ(t.Taggedrso.TagID).AND(t.Taggedrso.RsoID.EQ(t.Rso.ID)),
 	)
 
-	return t.Rso.SELECT(t.Rso.AllColumns, t.University.AllColumns, t.Tag.AllColumns, FullUserColumns()).FROM(table)
+	return t.Rso.SELECT(t.Rso.AllColumns, RsoUniversity().AllColumns, t.Tag.AllColumns, FullUserColumns()).FROM(table)
 }
 
 // Query that selects all RSOs and their associated university data, that have at least 5 members
@@ -155,4 +173,15 @@ func ReadComment() pg.SelectStatement {
 
 func CreateRsoMember() pg.InsertStatement {
 	return t.Rsomember.INSERT(t.Rsomember.ID, t.Rsomember.RsoID)
+}
+
+// Bool expression for checking if any users in a given rso do NOT have given email domain
+func RsoMembersDifferentEmail(rso Rso, emailDomain string) pg.BoolExpression {
+	return t.Rso.ID.EQ(pg.String(rso.Rso.ID)).AND(
+		t.Rsomember.RsoID.EQ(t.Rso.ID),
+	).AND(
+		t.Rsomember.ID.EQ(t.Baseuser.ID),
+	).AND(
+		pg.COUNT(t.Baseuser.Email.NOT_EQ(pg.String(emailDomain))).EQ(pg.Int(0)),
+	)
 }
