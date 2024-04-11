@@ -218,7 +218,9 @@ templ NavBar(currentTitle string) {
 		<ul>
 			<li>
 				<strong>
-					{ utils.ToUpperFirst(currentTitle) }
+					<a hx-get={ api("home/%s", currentTitle) } hx-target="main">
+						{ utils.ToUpperFirst(currentTitle) }
+					</a>
 				</strong>
 			</li>
 		</ul>
