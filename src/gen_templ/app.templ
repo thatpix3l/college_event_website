@@ -4,6 +4,7 @@ import "github.com/thatpix3l/cew/src/utils"
 import "strings"
 import "github.com/thatpix3l/cew/src/gen_sql"
 import "fmt"
+import "strconv"
 
 import m "github.com/thatpix3l/cew/src/gen_sql/college_event_website/cew/model"
 
@@ -54,10 +55,6 @@ templ Home(comp templ.Component) {
 	</html>
 }
 
-func submitEventInfo() string {
-	return "document.querySelector(\"#event-info\")"
-}
-
 templ EventSearch() {
 	<form
 		hx-get={ api("event") }
@@ -95,6 +92,14 @@ templ EventList(events []gen_sql.Event) {
 	for _, event := range events {
 		@Event(event)
 	}
+}
+
+templ EventListHome(events []gen_sql.Event) {
+	@NavBar("events")
+	@EventSearch()
+	<div id="interactive">
+		@EventList(events)
+	</div>
 }
 
 templ CommentContainer(commentId string, header templ.Component, body templ.Component, footer templ.Component) {
@@ -190,17 +195,10 @@ templ CommentList(user gen_sql.User, comments []m.Comment) {
 	}
 }
 
-templ Interactive(comp templ.Component) {
-	<div id="interactive">
-		@comp
-	</div>
-}
-
 templ EventInfo(event gen_sql.Event) {
 }
 
 templ UniversityInput(universities []m.University) {
-	<label for="university-input"><b></b></label>
 	<select id="university-input" name="UniversityID" aria-label="Pick University" required>
 		<option selected disabled value="">Pick University</option>
 		for _, university := range universities {
@@ -318,10 +316,19 @@ templ NavBar(currentTitle string) {
 
 templ Rso(rso gen_sql.Rso) {
 	<article id={ "rso-" + rso.Rso.ID }>
-		<header><b><a hx-get={ api("rso/" + rso.Rso.ID) } hx-target="#interactive">{ rso.Rso.Title }</a></b></header>
+		<header>
+			<b><a hx-get={ api("rso/" + rso.Rso.ID) } hx-target="#interactive">{ rso.Rso.Title }</a></b>
+			if len(rso.Members) > 0 {
+				, { strconv.Itoa(len(rso.Members)) }
+			}
+		</header>
 		{ rso.Rso.About }
 		<footer></footer>
 	</article>
+}
+
+templ RsoInfo(rso gen_sql.Rso) {
+	@Rso(rso)
 }
 
 templ RsoList(rsos []gen_sql.Rso) {
@@ -332,6 +339,36 @@ templ RsoList(rsos []gen_sql.Rso) {
 			}
 		</div>
 	}
+}
+
+templ CreateRso(universities []m.University) {
+	<article>
+		<form hx-post={ api("rso") } hx-target="#interactive">
+			<input type="text" name="Title" placeholder="Title"/>
+			<input type="text" name="About" placeholder="Short Description"/>
+			@UniversityInput(universities)
+			<input type="submit"/>
+		</form>
+	</article>
+}
+
+templ CreateRsoButton() {
+	<button
+		hx-get={ api("rso/create") }
+		hx-target="#interactive"
+	>Create</button>
+}
+
+templ RsoToolbar() {
+	@Toolbar(CreateRsoButton())
+}
+
+templ RsoListHome(rsos []gen_sql.Rso) {
+	@NavBar("rsos")
+	<div id="interactive">
+		@NavToolbar(RsoToolbar())
+		@RsoList(rsos)
+	</div>
 }
 
 templ StackComponents(components ...templ.Component) {

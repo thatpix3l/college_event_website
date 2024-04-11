@@ -125,11 +125,11 @@ func ReadRsos() pg.SelectStatement {
 	// MAY include tags
 	table := t.Rso.INNER_JOIN(
 		t.University, rsoUniversityBool,
-	).INNER_JOIN(
+	).LEFT_JOIN(
 		FullUserTable(), rsoMemberBool,
-	).INNER_JOIN(
+	).LEFT_JOIN(
 		t.Taggedrso, t.Taggedrso.RsoID.EQ(t.Rso.ID),
-	).INNER_JOIN(
+	).LEFT_JOIN(
 		t.Tag, t.Tag.ID.EQ(t.Taggedrso.TagID).AND(t.Taggedrso.RsoID.EQ(t.Rso.ID)),
 	)
 

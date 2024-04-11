@@ -187,11 +187,7 @@ func eventListHome(hs HandlerState) (templ.Component, error) {
 	}
 
 	// Create UI that uses current state of list of events
-	return app.StackComponents(
-		app.NavBar("events"),
-		app.EventSearch(),
-		app.Interactive(app.EventList(events)),
-	), nil
+	return app.EventListHome(events), nil
 }
 
 // Create new student that's associated with a university.
@@ -314,10 +310,7 @@ var ReadRsosHomeErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs 
 		return err
 	}
 
-	if err := hs.Local.RespondHtml(app.StackComponents(
-		app.NavBar("rsos"),
-		app.RsoList(rsos),
-	)); err != nil {
+	if err := hs.Local.RespondHtml(app.RsoListHome(rsos)); err != nil {
 		return err
 	}
 
@@ -788,6 +781,68 @@ var UpdateComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "patch
 	}
 
 	hs.Local.RespondHtml(app.Comment(user, comments[0]))
+
+	return nil
+})
+
+var ReadRsoCreate = addHandlerFunc(utils.ApiPath("rso/create"), "get", func(hs HandlerState) error {
+
+	universities := []m.University{}
+	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
+		return err
+	}
+
+	hs.Local.RespondHtml(app.CreateRso(universities))
+
+	return nil
+})
+
+type RsoParams struct {
+	Title        string
+	About        string
+	UniversityID string
+}
+
+var RsoCreate = addHandlerFunc(utils.ApiPath("rso"), "post", func(hs HandlerState) error {
+
+	params := RsoParams{}
+	if err := hs.ToParams(&params); err != nil {
+		return err
+	}
+
+	query := t.Rso.INSERT(t.Rso.MutableColumns).MODEL(params)
+
+	if err := runQuery(hs, query, nil); err != nil {
+		return err
+	}
+
+	rsos := []Rso{}
+	if err := runQuery(hs, ReadRsos(), &rsos); err != nil {
+		return err
+	}
+
+	hs.Local.RespondHtml(app.RsoList(rsos))
+
+	return nil
+})
+
+var ReadRsoList = addHandlerFunc(utils.ApiPath("rso/{rso_id}"), "get", func(hs HandlerState) error {
+
+	rsoId := chi.URLParam(hs.Local.Request, "rso_id")
+	if rsoId == "" {
+		return errors.New("get rso: did not provide rso ID")
+	}
+
+	rsos := []Rso{}
+	if err := runQuery(hs, ReadRsos().WHERE(t.Rso.ID.EQ(pg.String(rsoId))), &rsos); err != nil {
+		return err
+	}
+
+	if len(rsos) == 0 {
+		return errors.New("get rso: rso with provided ID does not exist")
+	}
+
+	hs.Local.RespondHtml(app.RsoInfo(rsos[0]))
 
 	return nil
 })
