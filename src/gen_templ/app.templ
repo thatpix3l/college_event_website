@@ -96,23 +96,21 @@ templ Comment(user gen_sql.User, event gen_sql.Event, comment m.Comment) {
 		<br/>
 		<br/>
 		{ comment.Body }
-		<footer>
-			if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
+		if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
+			<footer>
 				<button>Edit</button>
 				<button hx-delete={ api("event/%s/comment/%s", event.Baseevent.ID, comment.ID) } hx-target="#interactive">Delete</button>
-			}
-		</footer>
+			</footer>
+		}
 	</article>
 }
 
 templ CreateComment(event gen_sql.Event) {
 	<form
-		id="event-new-comment"
 		hx-post={ api("event/%s/comment", event.Baseevent.ID) }
 		hx-target="#interactive"
 	>
 		<textarea
-			id="event-new-comment-input"
 			name="CommentBody"
 			placeholder="New Comment"
 			rows="6"
