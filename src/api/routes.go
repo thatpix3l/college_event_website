@@ -528,7 +528,7 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 	fmt.Println("done")
 
 	// Store list of event-tag tuples into database
-	fmt.Print("storing all event-tag tuples...")
+	fmt.Print("inserting tags for each event...")
 	if err := runQuery(hs, CreateTaggedEvent().MODELS(taggedEventsParams), nil); err != nil {
 		return err
 	}
