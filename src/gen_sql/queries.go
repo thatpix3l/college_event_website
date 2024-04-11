@@ -152,3 +152,7 @@ func CreateComment() pg.InsertStatement {
 func ReadComment() pg.SelectStatement {
 	return t.Comment.SELECT(t.Comment.AllColumns)
 }
+
+func CreateRsoMember() pg.InsertStatement {
+	return t.Rsomember.INSERT(t.Rsomember.ID, t.Rsomember.RsoID)
+}

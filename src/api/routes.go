@@ -821,12 +821,17 @@ var RsoCreate = addHandlerFunc(utils.ApiPath("rso"), "post", func(hs HandlerStat
 		return err
 	}
 
-	hs.Local.RespondHtml(app.RsoList(rsos))
+	hs.Local.RespondHtml(app.RsoListHome(rsos))
 
 	return nil
 })
 
 var ReadRsoList = addHandlerFunc(utils.ApiPath("rso/{rso_id}"), "get", func(hs HandlerState) error {
+
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
 
 	rsoId := chi.URLParam(hs.Local.Request, "rso_id")
 	if rsoId == "" {
@@ -842,7 +847,50 @@ var ReadRsoList = addHandlerFunc(utils.ApiPath("rso/{rso_id}"), "get", func(hs H
 		return errors.New("get rso: rso with provided ID does not exist")
 	}
 
-	hs.Local.RespondHtml(app.RsoInfo(rsos[0]))
+	hs.Local.RespondHtml(app.RsoInfo(rsos[0], user))
+
+	return nil
+})
+
+var CreateRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "post", func(hs HandlerState) error {
+
+	// Get user
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	// Error if user is not a student
+	if user.Student == nil {
+		return errors.New("create rso member: user is not a student")
+	}
+
+	// Error if did not provide ID for an rso
+	rsoId := chi.URLParam(hs.Local.Request, "rso_id")
+	if rsoId == "" {
+		return errors.New("create rso member: did not provide rso ID")
+	}
+
+	rsoMember := m.Rsomember{
+		ID:    user.Student.ID,
+		RsoID: rsoId,
+	}
+
+	// Create RSO member, based off of user initiating request
+	createRsoMemberQuery := CreateRsoMember().MODEL(rsoMember)
+	if err := runQuery(hs, createRsoMemberQuery, nil); err != nil {
+		return err
+	}
+
+	// Re-read specific RSO for whom we just created a member for
+	rso := []Rso{}
+	readRsosQuery := ReadRsos().WHERE(t.Rso.ID.EQ(pg.String(rsoId)))
+	if err := runQuery(hs, readRsosQuery, &rso); err != nil {
+		return err
+	}
+
+	// Respond to client with UI for viewing the info of the RSO
+	hs.Local.RespondHtml(app.RsoInfo(rso[0], user))
 
 	return nil
 })

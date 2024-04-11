@@ -130,6 +130,7 @@ func StdHttpFunc(path string, method string, handler HandlerFunc) func(http.Resp
 
 		// Run handler.
 		if err := handler(hs); err != nil {
+			hs.Local.ResponseWriter.WriteHeader(http.StatusInternalServerError)
 			log.Println(utils.ErrPrep(err, "path "+path+", method "+method))
 		}
 

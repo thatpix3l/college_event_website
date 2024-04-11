@@ -314,12 +314,20 @@ templ NavBar(currentTitle string) {
 	</nav>
 }
 
+templ RsoMemberCount(rso gen_sql.Rso) {
+	if len(rso.Members) == 1 {
+		member
+	} else {
+		members
+	}
+}
+
 templ Rso(rso gen_sql.Rso) {
 	<article id={ "rso-" + rso.Rso.ID }>
 		<header>
 			<b><a hx-get={ api("rso/" + rso.Rso.ID) } hx-target="#interactive">{ rso.Rso.Title }</a></b>
 			if len(rso.Members) > 0 {
-				, { strconv.Itoa(len(rso.Members)) }
+				, { strconv.Itoa(len(rso.Members)) + " " } @RsoMemberCount(rso)
 			}
 		</header>
 		{ rso.Rso.About }
@@ -327,8 +335,42 @@ templ Rso(rso gen_sql.Rso) {
 	</article>
 }
 
-templ RsoInfo(rso gen_sql.Rso) {
+templ UserInfo(user gen_sql.User) {
+	<article>
+		<header>{ user.NameFirst } { user.NameLast }</header>
+		<div>
+			if user.UniversityID != nil {
+				University: { *user.UniversityID }
+			}
+		</div>
+		<footer></footer>
+	</article>
+}
+
+templ RsoJoin(rso gen_sql.Rso) {
+	<button hx-post={ api("rso/%s/member", rso.Rso.ID) } hx-target="#interactive">Join</button>
+}
+
+templ RsoLeave(rso gen_sql.Rso, user gen_sql.User) {
+	<button hx-delete={ api("rso/%s/member/%s", rso.Rso.ID, user.Baseuser.ID) } hx-target="#interactive">Leave</button>
+}
+
+templ RsoJoinLeave(rso gen_sql.Rso, user gen_sql.User) {
+	if user.Rsomember != nil && user.Rsomember.RsoID == rso.Rso.ID {
+		@RsoLeave(rso, user)
+	} else {
+		@RsoJoin(rso)
+	}
+}
+
+templ RsoInfo(rso gen_sql.Rso, user gen_sql.User) {
+	@NavToolbar(Toolbar(RsoJoinLeave(rso, user)))
 	@Rso(rso)
+	<div id="list-rso-member">
+		for _, user := range rso.Members {
+			@UserInfo(user)
+		}
+	</div>
 }
 
 templ RsoList(rsos []gen_sql.Rso) {
@@ -343,7 +385,7 @@ templ RsoList(rsos []gen_sql.Rso) {
 
 templ CreateRso(universities []m.University) {
 	<article>
-		<form hx-post={ api("rso") } hx-target="#interactive">
+		<form hx-post={ api("rso") } hx-target="main">
 			<input type="text" name="Title" placeholder="Title"/>
 			<input type="text" name="About" placeholder="Short Description"/>
 			@UniversityInput(universities)
