@@ -17,15 +17,15 @@ type baseeventTable struct {
 	postgres.Table
 
 	// Columns
-	ID           postgres.ColumnString
-	Title        postgres.ColumnString
-	About        postgres.ColumnString
-	UniversityID postgres.ColumnString
-	StartTime    postgres.ColumnTimestamp
-	ContactPhone postgres.ColumnString
-	ContactEmail postgres.ColumnString
-	Latitude     postgres.ColumnFloat
-	Longitude    postgres.ColumnFloat
+	ID            postgres.ColumnString
+	Title         postgres.ColumnString
+	About         postgres.ColumnString
+	UniversityID  postgres.ColumnString
+	PostTime      postgres.ColumnTimestamp
+	StartTime     postgres.ColumnTimestamp
+	ContactPhone  postgres.ColumnString
+	ContactEmail  postgres.ColumnString
+	EventLocation postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -66,32 +66,32 @@ func newBaseeventTable(schemaName, tableName, alias string) *BaseeventTable {
 
 func newBaseeventTableImpl(schemaName, tableName, alias string) baseeventTable {
 	var (
-		IDColumn           = postgres.StringColumn("id")
-		TitleColumn        = postgres.StringColumn("title")
-		AboutColumn        = postgres.StringColumn("about")
-		UniversityIDColumn = postgres.StringColumn("university_id")
-		StartTimeColumn    = postgres.TimestampColumn("start_time")
-		ContactPhoneColumn = postgres.StringColumn("contact_phone")
-		ContactEmailColumn = postgres.StringColumn("contact_email")
-		LatitudeColumn     = postgres.FloatColumn("latitude")
-		LongitudeColumn    = postgres.FloatColumn("longitude")
-		allColumns         = postgres.ColumnList{IDColumn, TitleColumn, AboutColumn, UniversityIDColumn, StartTimeColumn, ContactPhoneColumn, ContactEmailColumn, LatitudeColumn, LongitudeColumn}
-		mutableColumns     = postgres.ColumnList{TitleColumn, AboutColumn, UniversityIDColumn, StartTimeColumn, ContactPhoneColumn, ContactEmailColumn, LatitudeColumn, LongitudeColumn}
+		IDColumn            = postgres.StringColumn("id")
+		TitleColumn         = postgres.StringColumn("title")
+		AboutColumn         = postgres.StringColumn("about")
+		UniversityIDColumn  = postgres.StringColumn("university_id")
+		PostTimeColumn      = postgres.TimestampColumn("post_time")
+		StartTimeColumn     = postgres.TimestampColumn("start_time")
+		ContactPhoneColumn  = postgres.StringColumn("contact_phone")
+		ContactEmailColumn  = postgres.StringColumn("contact_email")
+		EventLocationColumn = postgres.StringColumn("event_location")
+		allColumns          = postgres.ColumnList{IDColumn, TitleColumn, AboutColumn, UniversityIDColumn, PostTimeColumn, StartTimeColumn, ContactPhoneColumn, ContactEmailColumn, EventLocationColumn}
+		mutableColumns      = postgres.ColumnList{TitleColumn, AboutColumn, UniversityIDColumn, PostTimeColumn, StartTimeColumn, ContactPhoneColumn, ContactEmailColumn, EventLocationColumn}
 	)
 
 	return baseeventTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:           IDColumn,
-		Title:        TitleColumn,
-		About:        AboutColumn,
-		UniversityID: UniversityIDColumn,
-		StartTime:    StartTimeColumn,
-		ContactPhone: ContactPhoneColumn,
-		ContactEmail: ContactEmailColumn,
-		Latitude:     LatitudeColumn,
-		Longitude:    LongitudeColumn,
+		ID:            IDColumn,
+		Title:         TitleColumn,
+		About:         AboutColumn,
+		UniversityID:  UniversityIDColumn,
+		PostTime:      PostTimeColumn,
+		StartTime:     StartTimeColumn,
+		ContactPhone:  ContactPhoneColumn,
+		ContactEmail:  ContactEmailColumn,
+		EventLocation: EventLocationColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

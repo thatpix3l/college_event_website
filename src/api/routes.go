@@ -137,24 +137,18 @@ func eventListQuery(hs HandlerState) (pg.SelectStatement, error) {
 		return nil, err
 	}
 
-	// Make bool expression that checks if an event and student both are from the same university
-	sameUniversity := t.Baseevent.UniversityID.EQ(pg.String(user.Student.UniversityID))
-
-	// If event is public and approved, allow
-	public := t.Baseevent.ID.EQ(t.Publicevent.ID).AND(t.Publicevent.Approved)
-
-	// If event is private and user is part of the same university, allow
-	private := t.Baseevent.ID.EQ(t.Privateevent.ID).AND(sameUniversity)
-
-	// If event is rso and user is part of the same university and part of the rso related to event, allow
-	sameRso := pg.Bool(false)
+	isRsoSameSource := pg.Bool(false)
 	if user.Rsomember != nil {
-		sameRso = t.Rsoevent.RsoID.EQ(pg.String(user.Rsomember.RsoID))
+		isRsoSameSource = IsRsoSameSource(user.Rsomember.RsoID)
 	}
 
-	rso := t.Baseevent.ID.EQ(t.Rsoevent.ID).AND(sameRso).AND(sameUniversity)
-
-	query := ReadEvents().WHERE(public.OR(private).OR(rso))
+	query := ReadEvents().WHERE(
+		IsPublicApproved().OR(
+			IsPrivateSameUniversity(user.UniversityID),
+		).OR(
+			isRsoSameSource,
+		),
+	)
 
 	return query, nil
 }
@@ -225,8 +219,6 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 		UniversityID: universityId,
 	}
 
-	log.Println(CreateStudent().MODEL(student).DebugSql())
-
 	// Insert student into database
 	if err := runQuery(hs, CreateStudent().MODEL(student), nil); err != nil {
 		hs.Local.RespondHtml(app.StatusMessage(app.Failure, err.Error()), http.StatusInternalServerError)
@@ -236,8 +228,6 @@ var CreateStudentErr = addHandlerFunc(utils.ApiPath("signup"), "post", func(hs H
 	// Retrieve fully configured student from database
 	user := User{}
 	readNewStudentQuery := ReadUsers().WHERE(t.Baseuser.ID.EQ(pg.String(baseUser.ID)))
-
-	log.Println(readNewStudentQuery.DebugSql())
 
 	if err := runQuery(hs, readNewStudentQuery, &user); err != nil {
 		return err
@@ -310,16 +300,129 @@ var CreateUniversityErr = addHandlerFunc(utils.ApiPath("university"), "post", fu
 
 })
 
+var ReadEventCreatorErr = addHandlerFunc(utils.ApiPath("event/creator"), "get", func(hs HandlerState) error {
+
+	// Get universities
+	universities := []m.University{}
+	if err := runQuery(hs, ReadUniversities(), &universities); err != nil {
+		return err
+	}
+
+	// Get RSOs
+	rsos := []Rso{}
+	if err := runQuery(hs, ReadRsosMinMembers(), &rsos); err != nil {
+		return err
+	}
+
+	// Respond to client with UI for creating a new event
+	hs.Local.RespondHtml(app.EventCreator(universities, rsos))
+
+	return nil
+})
+
+func nothing(hs HandlerState) error {
+	return nil
+}
+
+var ReadEventCreatorPublicOptionsErr = addHandlerFunc(utils.ApiPath("event/creator/public"), "get", nothing)
+
+var ReadEventCreatorPrivateOptionsErr = addHandlerFunc(utils.ApiPath("event/creator/private"), "get", nothing)
+
+var ReadEventCreatorRsoOptionsErr = addHandlerFunc(utils.ApiPath("event/creator/rso"), "get", func(hs HandlerState) error {
+
+	// Get RSOs with minimum amount of members required
+	rsos := []Rso{}
+	if err := runQuery(hs, ReadRsosMinMembers(), &rsos); err != nil {
+		return err
+	}
+
+	hs.Local.RespondHtml(app.EventCreatorRsoOptions(rsos))
+
+	return nil
+
+})
+
+func fixTime(hs HandlerState, key string) error {
+
+	// Get time
+	startTime, err := hs.FormGet("StartTime")
+	if err != nil {
+		return err
+	}
+
+	// Append thing so Go can parse/marshal/whatever in background
+	hs.Local.Request.Form[key] = []string{startTime + ":00Z"}
+
+	log.Println(startTime)
+
+	return nil
+
+}
+
 var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs HandlerState) error {
 
-	createUniversityParams := m.University{}
-	if err := hs.ToParams(&createUniversityParams); err != nil {
+	// Fix start time
+	if err := fixTime(hs, "StartTime"); err != nil {
 		return err
 	}
 
-	if err := runQuery(hs, CreateUniversity().MODEL(createUniversityParams), nil); err != nil {
+	// Get event type
+	eventType, err := hs.FormGet("EventType")
+	if err != nil {
 		return err
 	}
+
+	// Decode base event parameters
+	event := Event{}
+	if err := hs.ToParams(&event.Baseevent, "PostTime"); err != nil {
+		return err
+	}
+
+	// Store base event
+	if err := runQuery(hs, CreateEvent().MODEL(event.Baseevent), nil); err != nil {
+		return err
+	}
+
+	// Add appropriate event type to database
+	switch eventType {
+
+	// Make event private and viewable to only those in the same school
+	case "private":
+		event.Privateevent = &m.Privateevent{ID: event.Baseevent.ID}
+		query := t.Privateevent.INSERT(t.Privateevent.ID).MODEL(event.Privateevent)
+		if err := runQuery(hs, query, nil); err != nil {
+			return err
+		}
+
+		// Make event public and viewable to everyone
+	case "public":
+		event.Publicevent = &m.Publicevent{ID: event.Baseevent.ID}
+		query := t.Publicevent.INSERT(t.Publicevent.ID).MODEL(event.Publicevent)
+		if err := runQuery(hs, query, nil); err != nil {
+			return err
+		}
+
+		// Make event Rso-specific and viewable only to its associated Rso members
+	case "rso":
+		rsoId, err := hs.FormGet("RsoId")
+		if err != nil {
+			return err
+		}
+
+		event.Rsoevent = &m.Rsoevent{ID: event.Baseevent.ID, RsoID: rsoId}
+		query := t.Rsoevent.INSERT(t.Rsoevent.ID, t.Rsoevent.RsoID).MODEL(event.Rsoevent)
+		if err := runQuery(hs, query, nil); err != nil {
+			return err
+		}
+	}
+
+	// Retrieved updated list of events after inserting event
+	events, err := eventList(hs)
+	if err != nil {
+		return err
+	}
+
+	hs.Local.RespondHtml(app.EventListInteractive(events))
 
 	return nil
 })
@@ -351,7 +454,7 @@ var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs Handle
 
 	// Get search term for filtering; if empty, simply return list of ALL events
 	searchTerm := urlQueries.Get("search")
-	if searchTerm == "" {
+	if len(searchTerm) == 0 {
 
 		events := []Event{}
 		if err := runQuery(hs, query, &events); err != nil {
@@ -395,16 +498,12 @@ var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs Handle
 
 var universityForms = []map[string][]string{
 	{
-		"Title":     {"University of Central Florida"},
-		"About":     {"A public research university with its main campus in unincorporated Orange County, Florida"},
-		"Latitude":  {"28.602540027323045"},
-		"Longitude": {"-81.20002623717798"},
+		"Title": {"University of Central Florida"},
+		"About": {"A public research university with its main campus in unincorporated Orange County, Florida"},
 	},
 	{
-		"Title":     {"Massachusetts Institute of Technology"},
-		"About":     {"A private land-grant research university in Cambridge, Massachusetts"},
-		"Latitude":  {"42.360134050711146"},
-		"Longitude": {"-71.09410939970417"},
+		"Title": {"Massachusetts Institute of Technology"},
+		"About": {"A private land-grant research university in Cambridge, Massachusetts"},
 	},
 }
 
@@ -506,7 +605,7 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 	}
 	fmt.Println("done")
 
-	// Make all events pulled from UCF public
+	// Make all events pulled from UCF public and approved
 	publicEvents := []m.Publicevent{}
 	for _, event := range events {
 		publicEvents = append(publicEvents, m.Publicevent{
@@ -516,7 +615,8 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 	}
 
 	// Insert public events
-	if err := runQuery(hs, CreatePublicEvent().MODELS(publicEvents), nil); err != nil {
+	query := t.Publicevent.INSERT(t.Publicevent.ID, t.Publicevent.Approved).MODELS(publicEvents)
+	if err := runQuery(hs, query, nil); err != nil {
 		return err
 	}
 

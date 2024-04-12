@@ -17,11 +17,9 @@ type universityTable struct {
 	postgres.Table
 
 	// Columns
-	ID        postgres.ColumnString
-	Title     postgres.ColumnString
-	Latitude  postgres.ColumnFloat
-	Longitude postgres.ColumnFloat
-	About     postgres.ColumnString
+	ID    postgres.ColumnString
+	Title postgres.ColumnString
+	About postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -62,24 +60,20 @@ func newUniversityTable(schemaName, tableName, alias string) *UniversityTable {
 
 func newUniversityTableImpl(schemaName, tableName, alias string) universityTable {
 	var (
-		IDColumn        = postgres.StringColumn("id")
-		TitleColumn     = postgres.StringColumn("title")
-		LatitudeColumn  = postgres.FloatColumn("latitude")
-		LongitudeColumn = postgres.FloatColumn("longitude")
-		AboutColumn     = postgres.StringColumn("about")
-		allColumns      = postgres.ColumnList{IDColumn, TitleColumn, LatitudeColumn, LongitudeColumn, AboutColumn}
-		mutableColumns  = postgres.ColumnList{TitleColumn, LatitudeColumn, LongitudeColumn, AboutColumn}
+		IDColumn       = postgres.StringColumn("id")
+		TitleColumn    = postgres.StringColumn("title")
+		AboutColumn    = postgres.StringColumn("about")
+		allColumns     = postgres.ColumnList{IDColumn, TitleColumn, AboutColumn}
+		mutableColumns = postgres.ColumnList{TitleColumn, AboutColumn}
 	)
 
 	return universityTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:        IDColumn,
-		Title:     TitleColumn,
-		Latitude:  LatitudeColumn,
-		Longitude: LongitudeColumn,
-		About:     AboutColumn,
+		ID:    IDColumn,
+		Title: TitleColumn,
+		About: AboutColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

@@ -181,7 +181,7 @@ func runQuery(hs HandlerState, stmt pg.Statement, output any) error {
 }
 
 // Copy all required fields from the HandlerState's Form to destination struct
-func (hs HandlerState) ToParams(dest any) error {
+func (hs HandlerState) ToParams(dest any, optional ...string) error {
 
 	// Build form if not already exists
 	if err := hs.ParseForm(); err != nil {
@@ -205,8 +205,13 @@ func (hs HandlerState) ToParams(dest any) error {
 			}
 		}
 
+		ignoreKey := false
+		for _, optionalKey := range optional {
+			ignoreKey = ignoreKey || fieldName == optionalKey
+		}
+
 		// Error if field does not exist from Form and is not a primary key.
-		if _, ok := hs.Local.Request.Form[fieldName]; !ok && !isPrimaryKey {
+		if _, ok := hs.Local.Request.Form[fieldName]; !ok && !isPrimaryKey && !ignoreKey {
 			return fmt.Errorf("form to SQL params: form is missing key \"%s\"", fieldName)
 		}
 	}

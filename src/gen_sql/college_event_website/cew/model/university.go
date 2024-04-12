@@ -8,9 +8,7 @@
 package model
 
 type University struct {
-	ID        string `sql:"primary_key"`
-	Title     string
-	Latitude  float64
-	Longitude float64
-	About     string
+	ID    string `sql:"primary_key"`
+	Title string
+	About string
 }

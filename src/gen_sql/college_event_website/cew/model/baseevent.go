@@ -12,13 +12,13 @@ import (
 )
 
 type Baseevent struct {
-	ID           string `sql:"primary_key"`
-	Title        string
-	About        string
-	UniversityID string
-	StartTime    time.Time
-	ContactPhone string
-	ContactEmail string
-	Latitude     float64
-	Longitude    float64
+	ID            string `sql:"primary_key"`
+	Title         string
+	About         string
+	UniversityID  string
+	PostTime      time.Time
+	StartTime     time.Time
+	ContactPhone  string
+	ContactEmail  string
+	EventLocation string
 }

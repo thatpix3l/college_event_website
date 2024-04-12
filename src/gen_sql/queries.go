@@ -14,12 +14,13 @@ func CreateTaggedEvent() pg.InsertStatement {
 	return t.Taggedevent.INSERT(t.Taggedevent.AllColumns)
 }
 
+// Query for creating event with only required parameters
 func CreateEvent() pg.InsertStatement {
 	return t.Baseevent.INSERT(t.Baseevent.MutableColumns)
 }
 
-func ReadEvents() pg.SelectStatement {
-	return pg.SELECT(
+func FullEventColumns() pg.ProjectionList {
+	return []pg.Projection{
 		t.Baseevent.AllColumns,
 		t.Rsoevent.AllColumns,
 		t.Publicevent.AllColumns,
@@ -27,29 +28,59 @@ func ReadEvents() pg.SelectStatement {
 		t.Tag.AllColumns,
 		t.Comment.AllColumns,
 		t.Rating.AllColumns,
-	).FROM(
-		t.Baseevent.LEFT_JOIN(
-			t.Rsoevent, t.Baseevent.ID.EQ(t.Rsoevent.ID),
-		).LEFT_JOIN(
-			t.Publicevent, t.Baseevent.ID.EQ(t.Publicevent.ID),
-		).LEFT_JOIN(
-			t.Privateevent, t.Baseevent.ID.EQ(t.Privateevent.ID),
-		).LEFT_JOIN(
-			t.University, t.Baseevent.UniversityID.EQ(t.University.ID),
-		).LEFT_JOIN(
-			t.Taggedevent, t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID),
-		).LEFT_JOIN(
-			t.Tag, t.Tag.ID.EQ(t.Taggedevent.TagID).AND(t.Taggedevent.BaseEventID.EQ(t.Baseevent.ID)),
-		).LEFT_JOIN(
-			t.Comment, t.Comment.BaseEventID.EQ(t.Baseevent.ID),
-		).LEFT_JOIN(
-			t.Rating, t.Rating.BaseEventID.EQ(t.Baseevent.ID),
-		),
+	}
+}
+
+func FullEventTable() pg.ReadableTable {
+	return t.Baseevent.LEFT_JOIN(
+		t.Rsoevent, t.Baseevent.ID.EQ(t.Rsoevent.ID),
+	).LEFT_JOIN(
+		t.Publicevent, t.Baseevent.ID.EQ(t.Publicevent.ID),
+	).LEFT_JOIN(
+		t.Privateevent, t.Baseevent.ID.EQ(t.Privateevent.ID),
+	).LEFT_JOIN(
+		t.University, t.Baseevent.UniversityID.EQ(t.University.ID),
+	).LEFT_JOIN(
+		t.Taggedevent, t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID),
+	).LEFT_JOIN(
+		t.Tag, t.Tag.ID.EQ(t.Taggedevent.TagID).AND(t.Taggedevent.BaseEventID.EQ(t.Baseevent.ID)),
+	).LEFT_JOIN(
+		t.Comment, t.Comment.BaseEventID.EQ(t.Baseevent.ID),
+	).LEFT_JOIN(
+		t.Rating, t.Rating.BaseEventID.EQ(t.Baseevent.ID),
 	)
 }
 
-func CreatePublicEvent() pg.InsertStatement {
-	return t.Publicevent.INSERT(t.Publicevent.AllColumns)
+func ReadEvents() pg.SelectStatement {
+	return pg.SELECT(FullEventColumns()).FROM(FullEventTable())
+}
+
+func IsPublic() pg.BoolExpression {
+	return t.Baseevent.ID.EQ(t.Publicevent.ID)
+}
+
+func IsApproved() pg.BoolExpression {
+	return t.Publicevent.Approved
+}
+
+func IsPublicApproved() pg.BoolExpression {
+	return IsPublic().AND(IsApproved())
+}
+
+func IsPrivate() pg.BoolExpression {
+	return t.Baseevent.ID.EQ(t.Privateevent.ID)
+}
+
+func IsPrivateSameUniversity(universityId string) pg.BoolExpression {
+	return IsPrivate().AND(t.Baseevent.UniversityID.EQ(pg.String(universityId)))
+}
+
+func IsRso() pg.BoolExpression {
+	return t.Baseevent.ID.EQ(t.Rsoevent.ID)
+}
+
+func IsRsoSameSource(rsoId string) pg.BoolExpression {
+	return IsRso().AND(t.Rsoevent.RsoID.EQ(pg.String(rsoId)))
 }
 
 type Event struct {
@@ -132,10 +163,21 @@ type Rso struct {
 	Members      []User
 }
 
-// Query that selects all RSOs, their associated university data and members
-func ReadRsos() pg.SelectStatement {
-	rsoUniversityBool := t.Rso.UniversityID.EQ(RsoUniversity().ID)                        // Match university with RSO
-	rsoMemberBool := t.Rso.ID.EQ(t.Rsomember.RsoID).AND(t.Rsomember.ID.EQ(t.Baseuser.ID)) // Match Rso member to Rso
+func FullRsoColumns() pg.ProjectionList {
+	return []pg.Projection{
+		t.Rso.AllColumns,
+		RsoUniversity().AllColumns,
+		t.Tag.AllColumns,
+		FullUserColumns(),
+	}
+}
+
+func FullRsoTable() pg.ReadableTable {
+	// Match university with RSO
+	rsoUniversityBool := t.Rso.UniversityID.EQ(RsoUniversity().ID)
+
+	// Match Rso member to Rso
+	rsoMemberBool := t.Rso.ID.EQ(t.Rsomember.RsoID).AND(t.Rsomember.ID.EQ(t.Baseuser.ID))
 
 	// Table that MUST include Rso,
 	// MUST include its associated university,
@@ -151,16 +193,24 @@ func ReadRsos() pg.SelectStatement {
 		t.Tag, t.Tag.ID.EQ(t.Taggedrso.TagID).AND(t.Taggedrso.RsoID.EQ(t.Rso.ID)),
 	)
 
-	return t.Rso.SELECT(t.Rso.AllColumns, RsoUniversity().AllColumns, t.Tag.AllColumns, FullUserColumns()).FROM(table)
+	return table
 }
 
-// Query that selects all RSOs and their associated university data, that have at least 5 members
-func ReadRsosValid() pg.SelectStatement {
+// Query that selects all RSOs, their associated university data, and members
+func ReadRsos() pg.SelectStatement {
+	return t.Rso.SELECT(FullRsoColumns()).FROM(FullRsoTable())
+}
 
-	// Count of RSO members that are part of the same RSO
-	rsoMemberCount := pg.COUNT(t.Rsomember.RsoID.EQ(t.Rso.ID)).GT(pg.Int(4))
+// Query that selects all RSOs that have the minimum allowed amount of members to create events
+func ReadRsosMinMembers() pg.SelectStatement {
 
-	return ReadRsos().WHERE(rsoMemberCount)
+	// Column that stores count of members in a given RSO
+	rsoMemberCount := pg.COUNT(t.Rso.ID.EQ(t.Rsomember.RsoID))
+
+	// Condition that accepts only RSOs that have a mebmer count greater than 4
+	rsoMemberCountHasMin := rsoMemberCount.GT(pg.Int(4))
+
+	return pg.SELECT(t.Rso.ID, t.Rso.Title, rsoMemberCount).FROM(FullRsoTable()).GROUP_BY(t.Rso.ID).HAVING(rsoMemberCountHasMin)
 }
 
 func CreateComment() pg.InsertStatement {

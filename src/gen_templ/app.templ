@@ -58,7 +58,7 @@ templ Home(comp templ.Component) {
 templ EventSearch() {
 	<form
 		hx-get={ api("event") }
-		hx-target="#interactive"
+		hx-target="#event-list"
 		hx-trigger="input from:#event-search"
 	>
 		<input id="event-search" type="text" name="search" placeholder="Search Event" aria-label="Search Event"/>
@@ -94,11 +94,82 @@ templ EventList(events []gen_sql.Event) {
 	}
 }
 
+templ EventCreatorRequestor() {
+	<button hx-get={ api("event/creator") } hx-target="#interactive">New</button>
+}
+
+type EventCreatorRadioParams struct {
+	About    string
+	Checked  bool
+	Endpoint string
+}
+
+templ EventCreatorRadio(opts EventCreatorRadioParams) {
+	<input
+		class="suboption"
+		type="radio"
+		name="EventType"
+		hx-get={ api("event/creator/") + opts.Endpoint }
+		hx-target="#suboptions-creator-event"
+		if opts.Checked {
+			checked
+		}
+	/>
+	<label>
+		{ opts.About }
+	</label>
+}
+
+var radioParamsList = []EventCreatorRadioParams{
+	{About: "Private", Checked: true, Endpoint: "private"},
+	{About: "Public", Checked: false, Endpoint: "public"},
+	{About: "Rso", Checked: false, Endpoint: "rso"},
+}
+
+templ EventCreatorRadioList() {
+	<fieldset>
+		for _, radioParams := range radioParamsList {
+			@EventCreatorRadio(radioParams)
+		}
+	</fieldset>
+}
+
+templ EventCreatorRsoOptions(rsos []gen_sql.Rso) {
+	<select name="RsoId" aria-label="Pick Rso" required>
+		<option selected disabled value="">Pick Rso</option>
+		for _, rso := range rsos {
+			<option value={ rso.Rso.ID }>{ rso.Rso.Title }</option>
+		}
+	</select>
+}
+
+templ EventCreator(universities []m.University, rsos []gen_sql.Rso) {
+	<form hx-post={ api("event") } hx-target="#interactive">
+		<input type="submit" value="Submit"/>
+		<input type="text" name="Title" placeholder="Title" required/>
+		<input type="text" name="About" placeholder="About" required/>
+		<input type="text" name="EventLocation" placeholder="Event Location" required/>
+		<input type="tel" name="ContactPhone" placeholder="Contact Phone" required/>
+		<input type="email" name="ContactEmail" placeholder="Contact Email" required/>
+		<input type="datetime-local" name="StartTime" required/>
+		@UniversityInput(universities)
+		@NavToolbar(Toolbar(EventCreatorRadioList()))
+		<div id="suboptions-creator-event"></div>
+	</form>
+}
+
+templ EventListInteractive(events []gen_sql.Event) {
+	@NavToolbar(Toolbar(EventCreatorRequestor()))
+	@EventSearch()
+	<div id="event-list">
+		@EventList(events)
+	</div>
+}
+
 templ EventListHome(events []gen_sql.Event) {
 	@NavBar("events")
-	@EventSearch()
 	<div id="interactive">
-		@EventList(events)
+		@EventListInteractive(events)
 	</div>
 }
 
@@ -284,7 +355,7 @@ templ SignupForm(universities []m.University) {
 		UniversityInput(universities))
 }
 
-var navBarItems = []string{"events", "rsos", "account"}
+var navBarItems = []string{"events", "rsos"}
 
 templ NavBar(currentTitle string) {
 	<nav id="navbar">

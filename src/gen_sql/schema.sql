@@ -3,8 +3,6 @@ CREATE SCHEMA cew;
 CREATE TABLE cew.University (
     id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::VARCHAR,
     title VARCHAR NOT NULL,
-    latitude FLOAT NOT NULL,
-    longitude FLOAT NOT NULL,
     about VARCHAR NOT NULL
 );
 CREATE TABLE cew.BaseUser(
@@ -38,11 +36,11 @@ CREATE TABLE cew.BaseEvent (
     title VARCHAR NOT NULL,
     about VARCHAR NOT NULL,
     university_id VARCHAR NOT NULL REFERENCES cew.University(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    post_time TIMESTAMP NOT NULL,
     start_time TIMESTAMP NOT NULL,
     contact_phone VARCHAR NOT NULL,
     contact_email VARCHAR NOT NULL,
-    latitude FLOAT NOT NULL,
-    longitude FLOAT NOT NULL
+    event_location VARCHAR NOT NULL
 );
 CREATE TABLE cew.PublicEvent (
     id VARCHAR PRIMARY KEY REFERENCES cew.BaseEvent(id),
