@@ -88,6 +88,15 @@ templ Event(event gen_sql.Event) {
 	</article>
 }
 
+templ EventViewer(event gen_sql.Event, user gen_sql.User) {
+	@Event(event)
+	@CommentCreator(event)
+	@CommentList(user, event.Comments)
+	if event.Publicevent != nil && !event.Publicevent.Approved && user.Superadmin != nil {
+		<button hx-patch={ api("event/%s", event.Publicevent.ID) } hx-target="#interactive">Approve</button>
+	}
+}
+
 templ EventList(events []gen_sql.Event) {
 	for _, event := range events {
 		@Event(event)
@@ -264,9 +273,6 @@ templ CommentList(user gen_sql.User, comments []m.Comment) {
 			@Comment(user, comment)
 		}
 	}
-}
-
-templ EventInfo(event gen_sql.Event) {
 }
 
 templ UniversityInput(universities []m.University) {

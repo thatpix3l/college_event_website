@@ -129,7 +129,7 @@ var ReadSignupErr = addHandlerFunc(utils.ApiPath("signup"), "get", func(hs Handl
 })
 
 // Build query that returns list of events viewable by user in current handle
-func eventListQuery(hs HandlerState) (pg.SelectStatement, error) {
+func eventListQuery(hs HandlerState, conditionModifiers ...func(*pg.BoolExpression)) (pg.SelectStatement, error) {
 
 	// Get user from HandlerState
 	user := User{}
@@ -142,13 +142,27 @@ func eventListQuery(hs HandlerState) (pg.SelectStatement, error) {
 		isRsoSameSource = IsRsoSameSource(user.Rsomember.RsoID)
 	}
 
-	query := ReadEvents().WHERE(
-		IsPublicApproved().OR(
-			IsPrivateSameUniversity(user.UniversityID),
-		).OR(
-			isRsoSameSource,
-		),
+	isSuperAdmin := func() pg.BoolExpression {
+		if user.Superadmin != nil {
+			return pg.Bool(true)
+		}
+
+		return pg.Bool(false)
+	}
+
+	condition := IsPublicApproved().OR(
+		IsPrivateSameUniversity(user.UniversityID),
+	).OR(
+		isRsoSameSource,
+	).OR(
+		isSuperAdmin(),
 	)
+
+	if len(conditionModifiers) > 0 {
+		conditionModifiers[0](&condition)
+	}
+
+	query := ReadEvents().WHERE(condition)
 
 	return query, nil
 }
@@ -443,18 +457,18 @@ var ReadRsosHomeErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs 
 
 var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs HandlerState) error {
 
-	// Copy of query for getting events
-	query, err := eventListQuery(hs)
-	if err != nil {
-		return err
-	}
-
-	// Get url queries
+	// Get search term for filtering
 	urlQueries := hs.Local.Request.URL.Query()
-
-	// Get search term for filtering; if empty, simply return list of ALL events
 	searchTerm := urlQueries.Get("search")
+
+	// If search term is empty, do nothing and return list of events
 	if len(searchTerm) == 0 {
+
+		// Copy of query for getting events
+		query, err := eventListQuery(hs)
+		if err != nil {
+			return err
+		}
 
 		events := []Event{}
 		if err := runQuery(hs, query, &events); err != nil {
@@ -481,8 +495,13 @@ var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs Handle
 		t.Tag.Title.EQ(pg.String(searchTerm)),
 	)
 
-	// Modify query to only return events that have either the title, body, or tags matching search query
-	query = query.WHERE(title.OR(body).OR(tags))
+	// Copy of query for getting events
+	query, err := eventListQuery(hs, func(be *pg.BoolExpression) {
+		*be = (*be).AND(title.OR(body).OR(tags))
+	})
+	if err != nil {
+		return err
+	}
 
 	// Get list of events, based off of criteria
 	events := []Event{}
@@ -516,6 +535,13 @@ type ucfEvent struct {
 	Tags         []string
 }
 
+var defaultSuperAdmin = map[string][]string{
+	"NameFirst":         {"Jackie"},
+	"NameLast":          {"Chan"},
+	"Email":             {"superadmin@gmail.com"},
+	"PasswordPlaintext": {"supersecretpassword"},
+}
+
 var p = bluemonday.UGCPolicy()
 
 func unescape(input string) string {
@@ -526,6 +552,35 @@ func unescape(input string) string {
 // Helper route to populate database with default values.
 var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs HandlerState) error {
 
+	// Copy default super admin details into form data
+	hs.Local.Request.Form = defaultSuperAdmin
+
+	// Hash plaintext password
+	if err := hs.HashPasswordInput(); err != nil {
+		return err
+	}
+
+	// Convert form data into parameters
+	superAdminparams := m.Baseuser{}
+	if err := hs.ToParams(&superAdminparams); err != nil {
+		return err
+	}
+
+	// Insert new base user using super admin parameters
+	baseUsers := []m.Baseuser{}
+	baseUserInsert := t.Baseuser.INSERT(t.Baseuser.MutableColumns).MODEL(superAdminparams).RETURNING(t.Baseuser.AllColumns)
+	if err := runQuery(hs, baseUserInsert, &baseUsers); err != nil {
+		return err
+	}
+	baseUser := baseUsers[0]
+
+	// Promote base user into super admin
+	superAdminInsert := t.Superadmin.INSERT(t.Superadmin.ID).VALUES(baseUser.ID)
+	if err := runQuery(hs, superAdminInsert, nil); err != nil {
+		return err
+	}
+
+	// Now for pulling the latest UCF events and storing into the database
 	universitiesParams := []m.University{}
 	for _, form := range universityForms {
 
@@ -615,8 +670,8 @@ var InitDatabaseErr = addHandlerFunc(utils.ApiPath("init"), "post", func(hs Hand
 	}
 
 	// Insert public events
-	query := t.Publicevent.INSERT(t.Publicevent.ID, t.Publicevent.Approved).MODELS(publicEvents)
-	if err := runQuery(hs, query, nil); err != nil {
+	publicEventInsert := t.Publicevent.INSERT(t.Publicevent.ID, t.Publicevent.Approved).MODELS(publicEvents)
+	if err := runQuery(hs, publicEventInsert, nil); err != nil {
 		return err
 	}
 
@@ -697,11 +752,7 @@ func eventInfo(hs HandlerState, eventId string) error {
 	}
 
 	// Respond to user with UI for viewing event
-	hs.Local.RespondHtml(app.StackComponents(
-		app.Event(event),
-		app.CommentCreator(event),
-		app.CommentList(user, event.Comments),
-	))
+	hs.Local.RespondHtml(app.EventViewer(event, user))
 
 	return nil
 
@@ -1082,6 +1133,48 @@ var DeleteRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "d
 
 	// Respond to clinet the UI for viewing details about an Rso
 	hs.Local.RespondHtml(app.RsoInfo(rsos[0], userAfterDeletion))
+
+	return nil
+})
+
+var ApprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}"), "patch", func(hs HandlerState) error {
+
+	eventId := chi.URLParam(hs.Local.Request, "event_id")
+	if eventId == "" {
+		return errors.New("approve event: did not provide event ID")
+	}
+
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
+	if user.Superadmin == nil {
+		return errors.New("approve event: user is not a super admin")
+	}
+
+	publicEventParams := m.Publicevent{Approved: true}
+	query := t.Publicevent.UPDATE(t.Publicevent.ID).MODEL(publicEventParams)
+	approvedEventList := []m.Publicevent{}
+	if err := runQuery(hs, query, &approvedEventList); err != nil {
+		return err
+	}
+
+	if len(approvedEventList) == 0 {
+		return errors.New("approve event: could not update specified event")
+	}
+
+	events := []Event{}
+	eventsQuery := ReadEvents().WHERE(t.Baseevent.ID.EQ(pg.String(approvedEventList[0].ID)))
+	if err := runQuery(hs, eventsQuery, &events); err != nil {
+		return err
+	}
+
+	if len(events) == 0 {
+		return errors.New("approve event: could not retrieve event after successfully approving")
+	}
+
+	hs.Local.RespondHtml(app.EventViewer(events[0], user))
 
 	return nil
 })
