@@ -1,6 +1,6 @@
 module github.com/thatpix3l/cew
 
-go 1.22.0
+go 1.21
 
 require (
 	github.com/a-h/templ v0.2.590
