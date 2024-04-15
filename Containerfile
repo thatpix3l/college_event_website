@@ -1,27 +1,15 @@
-FROM golang:1.22-bookworm as build
+FROM golang:1.21-alpine as go-build
 
-RUN adduser \
-  --disabled-password \
-  --gecos "" \
-  --home "/nonexistent" \
-  --shell "/sbin/nologin" \
-  --no-create-home \
-  --uid 65532 \
-  small-user
-
-WORKDIR $GOPATH/src/smallest-golang/app/
+WORKDIR /workdir
 
 COPY . .
 
 RUN go mod download
 RUN go mod verify
+RUN GOOS=linux GOARCH=amd64 go build -o /app .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /main .
+FROM scratch
 
-FROM gcr.io/distroless/static-debian12
+COPY --from=go-build /app .
 
-COPY --from=build /main .
-
-USER small-user:small-user
-
-CMD ["./main"]
+CMD ["/app"]
