@@ -108,9 +108,8 @@ templ EventCreatorRequestor() {
 }
 
 type EventCreatorRadioParams struct {
-	About    string
-	Checked  bool
-	Endpoint string
+	About   string
+	Checked bool
 }
 
 templ EventCreatorRadio(opts EventCreatorRadioParams) {
@@ -118,7 +117,8 @@ templ EventCreatorRadio(opts EventCreatorRadioParams) {
 		class="suboption"
 		type="radio"
 		name="EventType"
-		hx-get={ api("event/creator/") + opts.Endpoint }
+		value={ strings.ToLower(opts.About) }
+		hx-get={ api("event/creator/") + strings.ToLower(opts.About) }
 		hx-target="#suboptions-creator-event"
 		if opts.Checked {
 			checked
@@ -130,9 +130,9 @@ templ EventCreatorRadio(opts EventCreatorRadioParams) {
 }
 
 var radioParamsList = []EventCreatorRadioParams{
-	{About: "Private", Checked: true, Endpoint: "private"},
-	{About: "Public", Checked: false, Endpoint: "public"},
-	{About: "Rso", Checked: false, Endpoint: "rso"},
+	{About: "Private", Checked: true},
+	{About: "Public", Checked: false},
+	{About: "Rso", Checked: false},
 }
 
 templ EventCreatorRadioList() {
@@ -205,7 +205,7 @@ templ CommentUserGenerated(comment m.Comment) {
 }
 
 templ CommentActions(comment m.Comment, user gen_sql.User) {
-	if user.StudentFull != nil && comment.StudentID != nil && user.StudentFull.Student.ID == *comment.StudentID {
+	if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
 		<button
 			hx-get={ api("comment/%s/update", comment.ID) }
 			hx-target={ "#comment-" + comment.ID }
@@ -416,8 +416,8 @@ templ UserInfo(user gen_sql.User) {
 	<article>
 		<header>{ user.NameFirst } { user.NameLast }</header>
 		<div>
-			if user.StudentFull != nil {
-				University: { user.StudentFull.University.Title }
+			if user.University != nil {
+				University: { user.University.Title }
 			}
 		</div>
 		<footer></footer>
@@ -433,7 +433,7 @@ templ RsoLeave(rso gen_sql.Rso, user gen_sql.User) {
 }
 
 templ RsoJoinLeave(rso gen_sql.Rso, user gen_sql.User) {
-	if user.Rsomember != nil && user.Rsomember.RsoID == rso.Rso.ID {
+	if user.RsoMembers != nil && user.IsRsoMember(rso.Rso.ID) {
 		@RsoLeave(rso, user)
 	} else {
 		@RsoJoin(rso)

@@ -126,16 +126,26 @@ func ReadUsers() pg.SelectStatement {
 	return pg.SELECT(FullUserColumns()).FROM(FullUserTable())
 }
 
-type StudentFull struct {
-	m.Student
-	m.University `alias:"StudentUniversity.*"`
-}
-
 type User struct {
 	m.Baseuser
-	*StudentFull
+	*m.Student
+	*m.University `alias:"StudentUniversity.*"`
 	*m.Superadmin
-	*m.Rsomember
+	RsoMembers []m.Rsomember
+}
+
+func (u User) IsRsoMember(rsoId string) bool {
+	if u.RsoMembers == nil {
+		return false
+	}
+
+	for _, rsoMember := range u.RsoMembers {
+		if rsoMember.RsoID == rsoId {
+			return true
+		}
+	}
+
+	return false
 }
 
 func CreateUniversity() pg.InsertStatement { return t.University.INSERT(t.University.MutableColumns) }

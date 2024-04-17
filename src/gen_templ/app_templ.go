@@ -315,9 +315,8 @@ func EventCreatorRequestor() templ.Component {
 }
 
 type EventCreatorRadioParams struct {
-	About    string
-	Checked  bool
-	Endpoint string
+	About   string
+	Checked bool
 }
 
 func EventCreatorRadio(opts EventCreatorRadioParams) templ.Component {
@@ -333,11 +332,19 @@ func EventCreatorRadio(opts EventCreatorRadioParams) templ.Component {
 			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<input class=\"suboption\" type=\"radio\" name=\"EventType\" hx-get=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<input class=\"suboption\" type=\"radio\" name=\"EventType\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(api("event/creator/") + opts.Endpoint))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(strings.ToLower(opts.About)))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-get=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(api("event/creator/") + strings.ToLower(opts.About)))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -376,9 +383,9 @@ func EventCreatorRadio(opts EventCreatorRadioParams) templ.Component {
 }
 
 var radioParamsList = []EventCreatorRadioParams{
-	{About: "Private", Checked: true, Endpoint: "private"},
-	{About: "Public", Checked: false, Endpoint: "public"},
-	{About: "Rso", Checked: false, Endpoint: "rso"},
+	{About: "Private", Checked: true},
+	{About: "Public", Checked: false},
+	{About: "Rso", Checked: false},
 }
 
 func EventCreatorRadioList() templ.Component {
@@ -725,7 +732,7 @@ func CommentActions(comment m.Comment, user gen_sql.User) templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if user.StudentFull != nil && comment.StudentID != nil && user.StudentFull.Student.ID == *comment.StudentID {
+		if user.Student != nil && comment.StudentID != nil && user.Student.ID == *comment.StudentID {
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1769,15 +1776,15 @@ func UserInfo(user gen_sql.User) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if user.StudentFull != nil {
+		if user.University != nil {
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("University: ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var64 string
-			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(user.StudentFull.University.Title)
+			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(user.University.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app.templ`, Line: 419, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app.templ`, Line: 419, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 			if templ_7745c5c3_Err != nil {
@@ -1872,7 +1879,7 @@ func RsoJoinLeave(rso gen_sql.Rso, user gen_sql.User) templ.Component {
 			templ_7745c5c3_Var67 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if user.Rsomember != nil && user.Rsomember.RsoID == rso.Rso.ID {
+		if user.RsoMembers != nil && user.IsRsoMember(rso.Rso.ID) {
 			templ_7745c5c3_Err = RsoLeave(rso, user).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

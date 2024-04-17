@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-jet/jet/v2/postgres"
 	pg "github.com/go-jet/jet/v2/postgres"
 	"github.com/microcosm-cc/bluemonday"
 	. "github.com/thatpix3l/cew/src/gen_sql"
@@ -129,7 +129,7 @@ var ReadSignupErr = addHandlerFunc(utils.ApiPath("signup"), "get", func(hs Handl
 })
 
 // Build query that returns list of events viewable by user in current handle
-func eventListQuery(hs HandlerState, conditionModifiers ...func(*pg.BoolExpression)) (pg.SelectStatement, error) {
+func eventListQuery(hs HandlerState, filters ...func() pg.BoolExpression) (pg.SelectStatement, error) {
 
 	// Get user from HandlerState
 	user := User{}
@@ -137,30 +137,46 @@ func eventListQuery(hs HandlerState, conditionModifiers ...func(*pg.BoolExpressi
 		return nil, err
 	}
 
-	isRsoSameSource := pg.Bool(false)
-	if user.Rsomember != nil {
-		isRsoSameSource = IsRsoSameSource(user.Rsomember.RsoID)
-	}
+	// BEGIN condition for determining user event viewing authorization
 
-	isSuperAdmin := func() pg.BoolExpression {
-		if user.Superadmin != nil {
-			return pg.Bool(true)
+	// If event is Public, allow
+	condition := IsPublicApproved()
+
+	// If event is private and user is part of same university, allow
+	condition = condition.OR(IsPrivateSameUniversity(user.UniversityID))
+
+	// If event is Rso and user is an Rso member and part of same Rso as event, allow
+	if user.RsoMembers != nil {
+
+		matchesRso := t.Rsoevent.RsoID.EQ(pg.String(user.RsoMembers[0].RsoID))
+
+		// Create OR expression to match at least one Rso with user and event
+		for i := 1; i < len(user.RsoMembers); i++ {
+			rsoMember := user.RsoMembers[i]
+			matchesRso = matchesRso.OR(t.Rsoevent.RsoID.EQ(pg.String(rsoMember.RsoID)))
 		}
 
-		return pg.Bool(false)
+		condition = condition.OR(t.Baseevent.ID.EQ(t.Rsoevent.ID).AND(matchesRso))
+
 	}
 
-	condition := IsPublicApproved().OR(
-		IsPrivateSameUniversity(user.UniversityID),
-	).OR(
-		isRsoSameSource,
-	).OR(
-		isSuperAdmin(),
-	)
-
-	if len(conditionModifiers) > 0 {
-		conditionModifiers[0](&condition)
+	// If user is a SuperAdmin, allow
+	if user.Superadmin != nil {
+		condition = condition.OR(t.Superadmin.ID.EQ(pg.String(user.Superadmin.ID)))
 	}
+
+	// Add optional filters
+	if len(filters) > 0 {
+		filtersMerged := filters[0]()
+		for i := 1; i < len(filters); i++ {
+			filter := filters[i]
+			filtersMerged = filtersMerged.AND(filter())
+		}
+
+		condition = condition.AND(filtersMerged)
+	}
+
+	// END condition for determining user event viewing authorization
 
 	query := ReadEvents().WHERE(condition)
 
@@ -367,8 +383,6 @@ func fixTime(hs HandlerState, key string) error {
 	// Append thing so Go can parse/marshal/whatever in background
 	hs.Local.Request.Form[key] = []string{startTime + ":00Z"}
 
-	log.Println(startTime)
-
 	return nil
 
 }
@@ -387,31 +401,36 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 	}
 
 	// Decode base event parameters
-	event := Event{}
-	if err := hs.ToParams(&event.Baseevent, "PostTime"); err != nil {
+	eventBase := m.Baseevent{}
+	if err := hs.ToParams(&eventBase, "PostTime"); err != nil {
 		return err
 	}
 
-	// Store base event
-	if err := runQuery(hs, CreateEvent().MODEL(event.Baseevent), nil); err != nil {
+	// Store base event; cache its auto-generated ID
+	createdEvents := []m.Baseevent{}
+	if err := runQuery(hs,
+		CreateEvent().MODEL(eventBase).RETURNING(t.Baseevent.ID),
+		&createdEvents); err != nil {
 		return err
 	}
+
+	eventId := createdEvents[0].ID
 
 	// Add appropriate event type to database
 	switch eventType {
 
 	// Make event private and viewable to only those in the same school
 	case "private":
-		event.Privateevent = &m.Privateevent{ID: event.Baseevent.ID}
-		query := t.Privateevent.INSERT(t.Privateevent.ID).MODEL(event.Privateevent)
+		eventPrivate := m.Privateevent{ID: eventId}
+		query := t.Privateevent.INSERT(t.Privateevent.ID).MODEL(eventPrivate)
 		if err := runQuery(hs, query, nil); err != nil {
 			return err
 		}
 
 		// Make event public and viewable to everyone
 	case "public":
-		event.Publicevent = &m.Publicevent{ID: event.Baseevent.ID}
-		query := t.Publicevent.INSERT(t.Publicevent.ID).MODEL(event.Publicevent)
+		eventPublic := m.Publicevent{ID: eventId}
+		query := t.Publicevent.INSERT(t.Publicevent.ID).MODEL(eventPublic)
 		if err := runQuery(hs, query, nil); err != nil {
 			return err
 		}
@@ -423,8 +442,8 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 			return err
 		}
 
-		event.Rsoevent = &m.Rsoevent{ID: event.Baseevent.ID, RsoID: rsoId}
-		query := t.Rsoevent.INSERT(t.Rsoevent.ID, t.Rsoevent.RsoID).MODEL(event.Rsoevent)
+		eventRso := m.Rsoevent{ID: eventId, RsoID: rsoId}
+		query := t.Rsoevent.INSERT(t.Rsoevent.ID, t.Rsoevent.RsoID).MODEL(eventRso)
 		if err := runQuery(hs, query, nil); err != nil {
 			return err
 		}
@@ -482,23 +501,24 @@ var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs Handle
 	// Modify search term so it can match as a substring of any stored strings
 	searchTerm = "%" + searchTerm + "%"
 
-	// Part of event title matches search
-	title := t.Baseevent.Title.LIKE(pg.String(searchTerm))
+	// Part of event matchesTitle matches search
+	matchesTitle := t.Baseevent.Title.LIKE(pg.String(searchTerm))
 
-	// Part of event body matches search
-	body := t.Baseevent.About.LIKE(pg.String(searchTerm))
+	// Part of event matchesBody matches search
+	matchesBody := t.Baseevent.About.LIKE(pg.String(searchTerm))
 
 	// At least one of the event's tags matches search
-	tags := t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID).AND(
+	matchesTags := t.Baseevent.ID.EQ(t.Taggedevent.BaseEventID).AND(
 		t.Taggedevent.TagID.EQ(t.Tag.ID),
 	).AND(
 		t.Tag.Title.EQ(pg.String(searchTerm)),
 	)
 
 	// Copy of query for getting events
-	query, err := eventListQuery(hs, func(be *pg.BoolExpression) {
-		*be = (*be).AND(title.OR(body).OR(tags))
+	query, err := eventListQuery(hs, func() postgres.BoolExpression {
+		return matchesTitle.OR(matchesBody).OR(matchesTags)
 	})
+
 	if err != nil {
 		return err
 	}
@@ -818,7 +838,7 @@ var DeleteComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "delet
 	}
 
 	// Error if user who initiated request is not a student
-	if user.StudentFull == nil {
+	if user.Student == nil {
 		return errors.New("remove comment from event: user is not a student")
 	}
 
@@ -928,8 +948,8 @@ var UpdateComment = addHandlerFunc(utils.ApiPath("comment/{comment_id}"), "patch
 		return err
 	}
 
-	if user.StudentFull == nil {
-		return errors.New("update comment: user is not a student")
+	if user.Student == nil {
+		return errors.New("update comment: not a student")
 	}
 
 	commentBody, err := hs.FormGet("CommentBody")
@@ -1033,7 +1053,7 @@ var CreateRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "p
 	}
 
 	// Error if user is not a student
-	if user.StudentFull == nil {
+	if user.Student == nil {
 		return errors.New("create rso member: user is not a student")
 	}
 
@@ -1092,19 +1112,30 @@ var DeleteRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "d
 		return err
 	}
 
-	// Error if request initiator is not a member of any Rso
-	if user.Rsomember == nil {
-		return errors.New("delete rso member: user initiating request is not a member of any RSO")
+	// Error if user is not a member of any Rso
+	if user.RsoMembers == nil {
+		return errors.New("delete rso member: not a member of any RSO")
 	}
 
-	// Error if request initiator is not a member of Rso that has provided ID
-	if user.Rsomember.RsoID != rsoId {
-		return errors.New("delete rso member: user initiating request is not a member of provided RSO")
+	// Check if user is part of provided Rso ID
+	partOfRso := func() bool {
+		for _, rsoMember := range user.RsoMembers {
+			if rsoMember.RsoID == rsoId {
+				return true
+			}
+		}
+		return false
+	}()
+
+	// Error if user is not a member of Rso that has provided ID
+	if !partOfRso {
+		return errors.New("delete rso member: not a member of provided RSO")
 	}
 
+	// Query for deleting user from Rso member list
 	deleteRsoMemberQuery := t.Rsomember.DELETE().WHERE(
-		t.Rsomember.RsoID.EQ(pg.String(user.Rsomember.RsoID)).AND(
-			t.Rsomember.ID.EQ(pg.String(user.Rsomember.ID)),
+		t.Rsomember.RsoID.EQ(pg.String(rsoId)).AND(
+			t.Rsomember.ID.EQ(pg.String(user.Baseuser.ID)),
 		),
 	)
 
@@ -1115,7 +1146,7 @@ var DeleteRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "d
 
 	// Retrieve details for Rso after user removal
 	rsos := []Rso{}
-	readRsoQuery := ReadRsos().WHERE(t.Rso.ID.EQ(pg.String(user.Rsomember.RsoID)))
+	readRsoQuery := ReadRsos().WHERE(t.Rso.ID.EQ(pg.String(rsoId)))
 	if err := runQuery(hs, readRsoQuery, &rsos); err != nil {
 		return err
 	}
