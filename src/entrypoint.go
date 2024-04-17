@@ -5,21 +5,24 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/alexflint/go-arg"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/thatpix3l/cew/src/api"
+	"github.com/thatpix3l/cew/src/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
-
-var db_url string = "postgres://postgres:postgres@127.0.0.1/college_event_website"
 
 func Main() {
 
 	log.SetFlags(log.Lshortfile)
 
+	// Parse CLI arguments
+	arg.MustParse(&config.Root)
+
 	// Get DB connection
-	db, err := sql.Open("pgx", db_url)
+	db, err := sql.Open("pgx", config.Root.Dsn())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,5 +44,5 @@ func Main() {
 		}
 	}
 
-	http.ListenAndServe(":3000", r)
+	http.ListenAndServe(config.Root.Host(), r)
 }
