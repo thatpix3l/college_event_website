@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/a-h/templ v0.2.590
+	github.com/alexflint/go-arg v1.4.3
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-jet/jet/v2 v2.11.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -15,7 +16,6 @@ require (
 )
 
 require (
-	github.com/alexflint/go-arg v1.4.3 // indirect
 	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
