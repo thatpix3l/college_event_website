@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -142,8 +144,10 @@ func eventListQuery(hs HandlerState, filters ...func() pg.BoolExpression) (pg.Se
 	// If event is Public, allow
 	condition := IsPublicApproved()
 
-	// If event is private and user is part of same university, allow
-	condition = condition.OR(IsPrivateSameUniversity(user.UniversityID))
+	// If event is private and user is a student and part of same university, allow
+	if user.Student != nil {
+		condition = condition.OR(IsPrivateSameUniversity(user.Student.University.ID))
+	}
 
 	// If event is Rso and user is an Rso member and part of same Rso as event, allow
 	if user.RsoMembers != nil {
@@ -160,9 +164,9 @@ func eventListQuery(hs HandlerState, filters ...func() pg.BoolExpression) (pg.Se
 
 	}
 
-	// If user is a SuperAdmin, allow
+	// If user is a SuperAdmin, simplify condition altogether and allow
 	if user.Superadmin != nil {
-		condition = condition.OR(t.Superadmin.ID.EQ(pg.String(user.Superadmin.ID)))
+		condition = pg.Bool(true)
 	}
 
 	// Add optional filters
@@ -203,13 +207,18 @@ func eventList(hs HandlerState) ([]Event, error) {
 // Create UI for the homepage of a list of events
 func eventListHome(hs HandlerState) (templ.Component, error) {
 
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return nil, err
+	}
+
 	events, err := eventList(hs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create UI that uses current state of list of events
-	return app.EventListHome(events), nil
+	return app.EventListHome(events, user), nil
 }
 
 // Create new student that's associated with a university.
@@ -389,6 +398,11 @@ func fixTime(hs HandlerState, key string) error {
 
 var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs HandlerState) error {
 
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
 	// Fix start time
 	if err := fixTime(hs, "StartTime"); err != nil {
 		return err
@@ -455,7 +469,7 @@ var CreateEventErr = addHandlerFunc(utils.ApiPath("event"), "post", func(hs Hand
 		return err
 	}
 
-	hs.Local.RespondHtml(app.EventListInteractive(events))
+	hs.Local.RespondHtml(app.EventListInteractive(events, user))
 
 	return nil
 })
@@ -476,6 +490,11 @@ var ReadRsosHomeErr = addHandlerFunc(utils.ApiPath("home/rsos"), "get", func(hs 
 
 var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs HandlerState) error {
 
+	user := User{}
+	if err := hs.GetUser(&user); err != nil {
+		return err
+	}
+
 	// Get search term for filtering
 	urlQueries := hs.Local.Request.URL.Query()
 	searchTerm := urlQueries.Get("search")
@@ -494,7 +513,7 @@ var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs Handle
 			return err
 		}
 
-		hs.Local.RespondHtml(app.EventList(events))
+		hs.Local.RespondHtml(app.EventList(events, user))
 		return nil
 	}
 
@@ -530,7 +549,7 @@ var ReadEventsErr = addHandlerFunc(utils.ApiPath("event"), "get", func(hs Handle
 	}
 
 	// Respond to client
-	hs.Local.RespondHtml(app.EventList(events))
+	hs.Local.RespondHtml(app.EventList(events, user))
 
 	return nil
 })
@@ -1168,11 +1187,19 @@ var DeleteRsoMemberErr = addHandlerFunc(utils.ApiPath("rso/{rso_id}/member"), "d
 	return nil
 })
 
-var ApprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}"), "patch", func(hs HandlerState) error {
+func bruh() {
+	for i := 0; i < 10; i++ {
+		log.Println("bruh")
+	}
+}
+
+func eventApproveDisapprove(hs HandlerState, approve bool) error {
+
+	msg := strings.ToLower(utils.ApproveStr(!approve))
 
 	eventId := chi.URLParam(hs.Local.Request, "event_id")
 	if eventId == "" {
-		return errors.New("approve event: did not provide event ID")
+		return fmt.Errorf("%s event: did not provide event ID", msg)
 	}
 
 	user := User{}
@@ -1181,10 +1208,12 @@ var ApprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}"), "p
 	}
 
 	if user.Superadmin == nil {
-		return errors.New("approve event: user is not a super admin")
+		return fmt.Errorf("%s event: user is not a super admin", msg)
 	}
 
-	publicEventParams := m.Publicevent{Approved: true}
+	bruh()
+
+	publicEventParams := m.Publicevent{Approved: approve}
 	query := t.Publicevent.UPDATE(t.Publicevent.ID).MODEL(publicEventParams)
 	approvedEventList := []m.Publicevent{}
 	if err := runQuery(hs, query, &approvedEventList); err != nil {
@@ -1192,7 +1221,7 @@ var ApprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}"), "p
 	}
 
 	if len(approvedEventList) == 0 {
-		return errors.New("approve event: could not update specified event")
+		return fmt.Errorf("%s event: could not update specified event", msg)
 	}
 
 	events := []Event{}
@@ -1202,10 +1231,28 @@ var ApprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}"), "p
 	}
 
 	if len(events) == 0 {
-		return errors.New("approve event: could not retrieve event after successfully approving")
+		return fmt.Errorf("%s event: could not retrieve event after successfully approving", msg)
 	}
 
-	hs.Local.RespondHtml(app.EventViewer(events[0], user))
+	hs.Local.RespondHtml(app.EventApprover(events[0]))
+
+	return nil
+}
+
+var ApprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}/approve"), "patch", func(hs HandlerState) error {
+
+	if err := eventApproveDisapprove(hs, true); err != nil {
+		return err
+	}
+
+	return nil
+})
+
+var DisapprovePublicEventErr = addHandlerFunc(utils.ApiPath("event/{event_id}/disapprove"), "patch", func(hs HandlerState) error {
+
+	if err := eventApproveDisapprove(hs, false); err != nil {
+		return err
+	}
 
 	return nil
 })

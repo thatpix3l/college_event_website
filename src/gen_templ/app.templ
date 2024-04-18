@@ -65,7 +65,17 @@ templ EventSearch() {
 	</form>
 }
 
-templ Event(event gen_sql.Event) {
+templ EventApprover(event gen_sql.Event) {
+	if event.Publicevent != nil {
+		<button
+			hx-patch={ api("event/%s/%s", event.Publicevent.ID, strings.ToLower(utils.ApproveStr(event.Publicevent.Approved))) }
+			hx-target="this"
+			hx-swap="outerHTML"
+		>{ utils.ApproveStr(event.Publicevent.Approved) }</button>
+	}
+}
+
+templ Event(event gen_sql.Event, user gen_sql.User) {
 	<article id={ "event-" + event.Baseevent.ID }>
 		<header>
 			<b>
@@ -73,6 +83,9 @@ templ Event(event gen_sql.Event) {
 					@templ.Raw(event.Baseevent.Title)
 				</a>
 			</b>
+			if user.Superadmin != nil {
+				@EventApprover(event)
+			}
 		</header>
 		@templ.Raw(event.Baseevent.About)
 		if len(event.Tags) > 0 {
@@ -89,7 +102,7 @@ templ Event(event gen_sql.Event) {
 }
 
 templ EventViewer(event gen_sql.Event, user gen_sql.User) {
-	@Event(event)
+	@Event(event, user)
 	@CommentCreator(event)
 	@CommentList(user, event.Comments)
 	if event.Publicevent != nil && !event.Publicevent.Approved && user.Superadmin != nil {
@@ -97,9 +110,9 @@ templ EventViewer(event gen_sql.Event, user gen_sql.User) {
 	}
 }
 
-templ EventList(events []gen_sql.Event) {
+templ EventList(events []gen_sql.Event, user gen_sql.User) {
 	for _, event := range events {
-		@Event(event)
+		@Event(event, user)
 	}
 }
 
@@ -167,18 +180,18 @@ templ EventCreator(universities []m.University, rsos []gen_sql.Rso) {
 	</form>
 }
 
-templ EventListInteractive(events []gen_sql.Event) {
+templ EventListInteractive(events []gen_sql.Event, user gen_sql.User) {
 	@NavToolbar(Toolbar(EventCreatorRequestor()))
 	@EventSearch()
 	<div id="event-list">
-		@EventList(events)
+		@EventList(events, user)
 	</div>
 }
 
-templ EventListHome(events []gen_sql.Event) {
+templ EventListHome(events []gen_sql.Event, user gen_sql.User) {
 	@NavBar("events")
 	<div id="interactive">
-		@EventListInteractive(events)
+		@EventListInteractive(events, user)
 	</div>
 }
 
@@ -416,8 +429,8 @@ templ UserInfo(user gen_sql.User) {
 	<article>
 		<header>{ user.NameFirst } { user.NameLast }</header>
 		<div>
-			if user.University != nil {
-				University: { user.University.Title }
+			if user.Student != nil {
+				University: { user.Student.University.Title }
 			}
 		</div>
 		<footer></footer>

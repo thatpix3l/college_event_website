@@ -31,3 +31,11 @@ func ToUpperFirst(s string) string {
 	sBytes[0] = []byte(strings.ToUpper(s))[0]
 	return string(sBytes)
 }
+
+func ApproveStr(approved bool) string {
+	if approved {
+		return "Disapprove"
+	}
+
+	return "Approve"
+}

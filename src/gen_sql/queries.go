@@ -126,10 +126,14 @@ func ReadUsers() pg.SelectStatement {
 	return pg.SELECT(FullUserColumns()).FROM(FullUserTable())
 }
 
+type Student struct {
+	ID           string `sql:"primary_key"`
+	m.University `alias:"StudentUniversity.*"`
+}
+
 type User struct {
 	m.Baseuser
-	*m.Student
-	*m.University `alias:"StudentUniversity.*"`
+	*Student
 	*m.Superadmin
 	RsoMembers []m.Rsomember
 }
