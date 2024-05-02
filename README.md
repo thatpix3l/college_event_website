@@ -3,22 +3,22 @@
 ## Showcase
 
 ### Signup
-[<img src="examples/ui/signup.png">](Signup Page)
+![Signup Page](examples/ui/signup.png)
 
 ### Event Dashboard
-[<img src="examples/ui/event_dashboard.png"](Event Dashboard)
+![Event Dashboard](examples/ui/event_dashboard.png)
 
 ### Event Creator
-[<img src="examples/ui/event_creator.png"](Event Creator)
+![Event Creator](examples/ui/event_creator.png)
 
 ### Event Info
-[<img src="examples/ui/event_info.png"](Event Info)
+![Event Info](examples/ui/event_info.png)
 
 ### Rso Dashboard
-[<img src="examples/ui/rso_dashboard.png"](Rso Dashboard)
+![Rso Dashboard](examples/ui/rso_dashboard.png)
 
 ### Rso Creator
-[<img src="examples/ui/rso_creator.png"](Rso Creator)
+![Rso Creator](examples/ui/rso_creator.png)
 
 ## Build
 ```sh
