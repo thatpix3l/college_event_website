@@ -1,5 +1,25 @@
 # College Event Website
 
+## Showcase
+
+### Signup
+[<img src="examples/ui/signup.png">](Signup Page)
+
+### Event Dashboard
+[<img src="examples/ui/event_dashboard.png"](Event Dashboard)
+
+### Event Creator
+[<img src="examples/ui/event_creator.png"](Event Creator)
+
+### Event Info
+[<img src="examples/ui/event_info.png"](Event Info)
+
+### Rso Dashboard
+[<img src="examples/ui/rso_dashboard.png"](Rso Dashboard)
+
+### Rso Creator
+[<img src="examples/ui/rso_creator.png"](Rso Creator)
+
 ## Build
 ```sh
 cd $PATH_TO_REPO && go build .
